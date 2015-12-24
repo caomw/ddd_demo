@@ -394,273 +394,289 @@ void estimateRigidTransform(const float* x_in, const float* y_in, float RT[12])
     y[2 + i*3] = y_in[2 + i*3] - y_centroid[2];
 
   }
-	// printf("x\n");
-	// for (int jj =0; jj<3;jj++){
-	//   printf("%f,%f,%f\n",x[0+jj*3],x[1+3*jj],x[2+3*jj]);
-	// }
-	//y_centrized = y
-	float R12[9];
-	for  (int i =0;i<pointCount;i++){
-	  R12[0+i*3] = y[0 + i*3] - x[0 + i*3];
-	  R12[1+i*3] = y[1 + i*3] - x[1 + i*3];
-	  R12[2+i*3] = y[2 + i*3] - x[2 + i*3];
-	}
+  // printf("x\n");
+  // for (int jj =0; jj<3;jj++){
+  //   printf("%f,%f,%f\n",x[0+jj*3],x[1+3*jj],x[2+3*jj]);
+  // }
+  //y_centrized = y
+  float R12[9];
+  for  (int i =0;i<pointCount;i++){
+    R12[0+i*3] = y[0 + i*3] - x[0 + i*3];
+    R12[1+i*3] = y[1 + i*3] - x[1 + i*3];
+    R12[2+i*3] = y[2 + i*3] - x[2 + i*3];
+  }
 
-	float R21[9];
-	for  (int i =0;i<pointCount;i++){
-	  R21[0+i*3] = - y[0 + i*3] + x[0 + i*3];
-	  R21[1+i*3] = - y[1 + i*3] + x[1 + i*3];
-	  R21[2+i*3] = - y[2 + i*3] + x[2 + i*3];
-	}
+  float R21[9];
+  for  (int i =0;i<pointCount;i++){
+    R21[0+i*3] = - y[0 + i*3] + x[0 + i*3];
+    R21[1+i*3] = - y[1 + i*3] + x[1 + i*3];
+    R21[2+i*3] = - y[2 + i*3] + x[2 + i*3];
+  }
 
-	float R22_1[9];
-	for  (int i =0;i<pointCount;i++){
-	  R22_1[0+i*3] = y[0 + i*3] + x[0 + i*3];
-	  R22_1[1+i*3] = y[1 + i*3] + x[1 + i*3];
-	  R22_1[2+i*3] = y[2 + i*3] + x[2 + i*3];
-	}
-	if (debug){
-	printf("R12\n");
-	for (int jj =0; jj<3;jj++){
-	  printf("%f,%f,%f\n",R12[0+jj*3],R12[1+3*jj],R12[2+3*jj]);
-	}
-	printf("R22_1\n");
-	for (int jj =0; jj<3;jj++){
-	  printf("%f,%f,%f\n",R22_1[0+jj*3],R22_1[1+3*jj],R22_1[2+3*jj]);
-	}
-	}
-
-
+  float R22_1[9];
+  for  (int i =0;i<pointCount;i++){
+    R22_1[0+i*3] = y[0 + i*3] + x[0 + i*3];
+    R22_1[1+i*3] = y[1 + i*3] + x[1 + i*3];
+    R22_1[2+i*3] = y[2 + i*3] + x[2 + i*3];
+  }
+  if (debug){
+  printf("R12\n");
+  for (int jj =0; jj<3;jj++){
+    printf("%f,%f,%f\n",R12[0+jj*3],R12[1+3*jj],R12[2+3*jj]);
+  }
+  printf("R22_1\n");
+  for (int jj =0; jj<3;jj++){
+    printf("%f,%f,%f\n",R22_1[0+jj*3],R22_1[1+3*jj],R22_1[2+3*jj]);
+  }
+  }
 
 
 
 
-	float R22[3][3][3];
-	crossTimesMatrix(R22_1, pointCount,R22);
-	float B[4][4];
-	for (int i =0;i<4;i++){
-	 for (int j =0;j<4;j++){
-	    B[i][j] = 0;
-	 }
-	}
 
 
-	float A[4][4];
-	for  (int i =0;i<pointCount;i++){
-	  A[0][0] = 0;
-	  A[0][1] = R12[0+i*3];
-	  A[0][2] = R12[1+i*3];
-	  A[0][3] = R12[2+i*3];
-
-	  A[1][0] = R21[0+i*3];
-	  A[1][1] = R22[0][0][i];
-	  A[1][2] = R22[0][1][i];
-	  A[1][3] = R22[0][2][i];
-
-	  A[2][0] = R21[1+i*3];
-	  A[2][1] = R22[1][0][i];
-	  A[2][2] = R22[1][1][i];
-	  A[2][3] = R22[1][2][i];
-
-	  A[3][0] = R21[2+i*3];
-	  A[3][1] = R22[2][0][i];
-	  A[3][2] = R22[2][1][i];
-	  A[3][3] = R22[2][2][i];
-
-	  float A_p[4][4];
-	  transpose4by4(A,A_p);
-	  float AA_p[4][4];
-	  multi4by4(A,A_p,AA_p);
-
-	  for (int j =0;j<4;j++){
-	    for (int k =0;k<4;k++){
-	        B[j][k] = B[j][k]+AA_p[j][k];
-	    } 
-	  }
-	/*
-	printf("A%d\n",i);
-	for (int jj =0; jj<4;jj++){
-	   printf("%f,%f,%f,%f\n",A[jj][0],A[jj][1],A[jj][2],A[jj][3]);
-	}
-
-	printf("A_p%d\n",i);
-	for (int jj =0; jj<4;jj++){
-	  printf("%f,%f,%f,%f\n",AA_p[jj][0],AA_p[jj][1],AA_p[jj][2],AA_p[jj][3]);
-	}
-
-	printf("B%d\n",i);
-	for (int jj =0; jj<4;jj++){
-	  printf("%f,%f,%f,%f\n",B[jj][0],B[jj][1],B[jj][2],B[jj][3]);
-	}
-	*/
-
-	}
-	float S[4]={0,0,0,0};
-	float V[4][4]={0,0,0,0, 0,0,0,0,
-	             0,0,0,0,0,0,0,0};
+  float R22[3][3][3];
+  crossTimesMatrix(R22_1, pointCount,R22);
+  float B[4][4];
+  for (int i =0;i<4;i++){
+   for (int j =0;j<4;j++){
+      B[i][j] = 0;
+   }
+  }
 
 
+  float A[4][4];
+  for  (int i =0;i<pointCount;i++){
+    A[0][0] = 0;
+    A[0][1] = R12[0+i*3];
+    A[0][2] = R12[1+i*3];
+    A[0][3] = R12[2+i*3];
 
-	dsvd(B,4,4,S,V);
+    A[1][0] = R21[0+i*3];
+    A[1][1] = R22[0][0][i];
+    A[1][2] = R22[0][1][i];
+    A[1][3] = R22[0][2][i];
 
-	int ind = 0;
-	float minsingularvalue = S[0];
-	for (int i=0;i<4;i++){
-	if (S[i]<minsingularvalue){
-	  minsingularvalue = S[i];
-	  ind =i;
-	}
-	}
-	float quat[4];
-	for (int i =0;i<4;i++){
-	quat[i] = V[i][ind];
-	}
+    A[2][0] = R21[1+i*3];
+    A[2][1] = R22[1][0][i];
+    A[2][2] = R22[1][1][i];
+    A[2][3] = R22[1][2][i];
 
-	float rot[9];
-	quat2rot(quat,rot);
+    A[3][0] = R21[2+i*3];
+    A[3][1] = R22[2][0][i];
+    A[3][2] = R22[2][1][i];
+    A[3][3] = R22[2][2][i];
 
-	/*
-	printf("V\n");
-	for (int jj =0; jj<4;jj++){
-	printf("%f,%f,%f,%f\n",V[0][jj],V[1][jj],V[2][jj],V[3][jj]);
-	}
-	printf("S\n");
-	printf("%f,%f,%f,%f\n",S[0],S[1],S[2],S[3]);
-	printf("quat :%f,%f,%f,%f\n",quat[0],quat[1],quat[2],quat[3]);
-	printf("rot\n");
-	for (int jj =0; jj<3;jj++){
-	printf("%f,%f,%f\n",rot[0+jj*3],rot[1+3*jj],rot[2+3*jj]);
-	}
-	*/
+    float A_p[4][4];
+    transpose4by4(A,A_p);
+    float AA_p[4][4];
+    multi4by4(A,A_p,AA_p);
 
+    for (int j =0;j<4;j++){
+      for (int k =0;k<4;k++){
+          B[j][k] = B[j][k]+AA_p[j][k];
+      } 
+    }
+  /*
+  printf("A%d\n",i);
+  for (int jj =0; jj<4;jj++){
+     printf("%f,%f,%f,%f\n",A[jj][0],A[jj][1],A[jj][2],A[jj][3]);
+  }
 
-	float T1[4][4] = {1,0,0,-y_centroid[0],
-	                 0,1,0,-y_centroid[1],
-	                 0,0,1,-y_centroid[2],
-	                 0,0,0,1};
-	float T2[4][4] = {rot[0],rot[1],rot[2],0,
-	                 rot[3],rot[4],rot[5],0,
-	                 rot[6],rot[7],rot[8],0,
-	                 0,0,0,1};
-	float T3[4][4] = {1,0,0,x_centroid[0],
-	                 0,1,0,x_centroid[1],
-	                 0,0,1,x_centroid[2],
-	                 0,0,0,1};
+  printf("A_p%d\n",i);
+  for (int jj =0; jj<4;jj++){
+    printf("%f,%f,%f,%f\n",AA_p[jj][0],AA_p[jj][1],AA_p[jj][2],AA_p[jj][3]);
+  }
 
+  printf("B%d\n",i);
+  for (int jj =0; jj<4;jj++){
+    printf("%f,%f,%f,%f\n",B[jj][0],B[jj][1],B[jj][2],B[jj][3]);
+  }
+  */
 
-	float T21[4][4];
-	multi4by4(T2,T1,T21);
-
-
-	float T[4][4];
-	multi4by4(T3,T21,T);
+  }
+  float S[4]={0,0,0,0};
+  float V[4][4]={0,0,0,0, 0,0,0,0,
+               0,0,0,0,0,0,0,0};
 
 
 
-	for (int i =0;i<3;i++){
-	  for (int j = 0;j <4;j++){
-	    RT[i*4+j] = T[i][j];
-	  }
-	}
+  dsvd(B,4,4,S,V);
+
+  int ind = 0;
+  float minsingularvalue = S[0];
+  for (int i=0;i<4;i++){
+  if (S[i]<minsingularvalue){
+    minsingularvalue = S[i];
+    ind =i;
+  }
+  }
+  float quat[4];
+  for (int i =0;i<4;i++){
+  quat[i] = V[i][ind];
+  }
+
+  float rot[9];
+  quat2rot(quat,rot);
+
+  /*
+  printf("V\n");
+  for (int jj =0; jj<4;jj++){
+  printf("%f,%f,%f,%f\n",V[0][jj],V[1][jj],V[2][jj],V[3][jj]);
+  }
+  printf("S\n");
+  printf("%f,%f,%f,%f\n",S[0],S[1],S[2],S[3]);
+  printf("quat :%f,%f,%f,%f\n",quat[0],quat[1],quat[2],quat[3]);
+  printf("rot\n");
+  for (int jj =0; jj<3;jj++){
+  printf("%f,%f,%f\n",rot[0+jj*3],rot[1+3*jj],rot[2+3*jj]);
+  }
+  */
 
 
-	/*
-	printf("T\n");
-	for (int jj =0; jj<4;jj++){
-	  printf("%f,%f,%f,%f\n",T[jj][0],T[jj][1],T[jj][2],T[jj][3]);
-	}
-	*/
+  float T1[4][4] = {1,0,0,-y_centroid[0],
+                   0,1,0,-y_centroid[1],
+                   0,0,1,-y_centroid[2],
+                   0,0,0,1};
+  float T2[4][4] = {rot[0],rot[1],rot[2],0,
+                   rot[3],rot[4],rot[5],0,
+                   rot[6],rot[7],rot[8],0,
+                   0,0,0,1};
+  float T3[4][4] = {1,0,0,x_centroid[0],
+                   0,1,0,x_centroid[1],
+                   0,0,1,x_centroid[2],
+                   0,0,0,1};
 
-	return;
+
+  float T21[4][4];
+  multi4by4(T2,T1,T21);
+
+
+  float T[4][4];
+  multi4by4(T3,T21,T);
+
+
+
+  for (int i =0;i<3;i++){
+    for (int j = 0;j <4;j++){
+      RT[i*4+j] = T[i][j];
+    }
+  }
+
+
+  /*
+  printf("T\n");
+  for (int jj =0; jj<4;jj++){
+    printf("%f,%f,%f,%f\n",T[jj][0],T[jj][1],T[jj][2],T[jj][3]);
+  }
+  */
+
+  return;
 }
 
 void TestRigidTransformError(const std::vector< std::vector<float> > refCoord, const std::vector< std::vector<float> > movCoord,
-						const std::vector< std::vector<int> > RankInd,
-						float * RTthis, float thresh2, int *d_counts)
+            const std::vector< std::vector<int> > RankInd,
+            float * RTthis, float thresh2, int *d_counts)
 {
-	int cnt = 0;
-	for (int i=0; i<movCoord.size(); i++) {
-		if (RankInd[i].size()>0){
-			float x1 = movCoord[i][0];
-	        float y1 = movCoord[i][1];
-	        float z1 = movCoord[i][2];
+  int cnt = 0;
+  for (int i=0; i<movCoord.size(); i++) {
+    if (RankInd[i].size()>0){
+            float x1 = refCoord[i][0];
+            float y1 = refCoord[i][1];
+            float z1 = refCoord[i][2];
 
-	        float x2 = refCoord[RankInd[i][0]][0];
-	        float y2 = refCoord[RankInd[i][0]][1];
-	        float z2 = refCoord[RankInd[i][0]][2];
+      float x2 = movCoord[RankInd[i][0]][0];
+          float y2 = movCoord[RankInd[i][0]][1];
+          float z2 = movCoord[RankInd[i][0]][2];
 
-	        float xt = RTthis[0] * x2 + RTthis[1] * y2 + RTthis[2] * z2 + RTthis[3];
-        	float yt = RTthis[4] * x2 + RTthis[5] * y2 + RTthis[6] * z2 + RTthis[7];
-        	float zt = RTthis[8] * x2 + RTthis[9] * y2 + RTthis[10] * z2 + RTthis[11];
+          
 
-        	float err = (xt-x1)*(xt-x1)+(yt-y1)*(yt-y1)+(zt-z1)*(zt-z1);
+          float xt = RTthis[0] * x2 + RTthis[1] * y2 + RTthis[2] * z2 + RTthis[3];
+          float yt = RTthis[4] * x2 + RTthis[5] * y2 + RTthis[6] * z2 + RTthis[7];
+          float zt = RTthis[8] * x2 + RTthis[9] * y2 + RTthis[10] * z2 + RTthis[11];
+
+          float err = (xt-x1)*(xt-x1)+(yt-y1)*(yt-y1)+(zt-z1)*(zt-z1);
         
 
-	        if (err<thresh2){
-	            cnt ++;
-	        }
+          if (err<thresh2){
+              cnt ++;
+          }
 
-		}
-	}
-	*d_counts = cnt;
+    }
+  }
+  *d_counts = cnt;
     return;
 
 }
 
 void ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vector< std::vector<float> > movCoord,
-			     const std::vector< std::vector<int> > RankInd, const int topK,
-				 const int numLoops, const float thresh, float* rigidtransform)
-{	
-	//RankInd for every movCoord point top K matches RankInd.size()==movNum
-	int refNum = refCoord.size();
-	int movNum = movCoord.size();
-	
-	assert(RankInd.size()==movNum);
+           const std::vector< std::vector<int> > RankInd, const int topK,
+         const int numLoops, const float thresh, float* rigidtransform)
+{ 
+  //RankInd for every refCoord point top K matches RankInd.size()==refNum
+  int refNum = refCoord.size();
+  int movNum = movCoord.size();
+  
+  assert(RankInd.size()==refNum);
 
-	int h_count =-1;
+  int h_count =-1;
     float thresh2 = thresh*thresh;
-	float h_RT[12]; 
+  float h_RT[12]; 
 
-	float x_in[9];
-	float y_in[9];
-	int sample[3];
-	int maxCount = -1;
-	for (int iter=0;iter<numLoops;++iter) {
-		// Draw three points from movCoord
-		int p1 = rand() % movNum;
-		int p2 = rand() % movNum;
-        int p3 = rand() % movNum;
-        // make sure they are different and has match in the target cloud
-		while (RankInd[p1].size()==0) p1 = rand() % movNum;
-		while (p2==p1||RankInd[p2].size()==0) p2 = rand() % movNum;
-		while (p3==p1 || p3==p2||RankInd[p3].size()==0) p3 = rand() % movNum;
-		sample[0] = p1;
-		sample[1] = p2;
-		sample[2] = p3;
+  float x_in[9];
+  float y_in[9];
+  int sample[3];
+  int maxCount = -1;
+  for (int iter=0; iter<numLoops; ++iter) {
+    // Draw three points from refCoord
+    int p1 = rand() % refNum;
+    int p2 = rand() % refNum;
+        int p3 = rand() % refNum;
+        // make sure they are different and has match in the movCoord 
+    while (RankInd[p1].size()==0) p1 = rand() % refNum;
+    while (p2==p1||RankInd[p2].size()==0) p2 = rand() % refNum;
+    while (p3==p1 || p3==p2||RankInd[p3].size()==0) p3 = rand() % refNum;
+    sample[0] = p1;
+    sample[1] = p2;
+    sample[2] = p3;
 
-		// Find corresponding features in the target cloud
-		for (int i = 0; i<3; i++){
-			int corr_sample = rand()%min(RankInd[sample[i]].size(),topK);
-			for (int j = 0; j<3; j++){
-				x_in[j+i*3] = refCoord[sample[i]][j];
-				y_in[j+i*3] = movCoord[corr_sample][j];
-			}
-		}
+       
 
-		// Estimate the transform from the samples to their corresponding points
-		estimateRigidTransform(x_in, y_in, h_RT);  //x_in = RT*y_in
-		// Tranform the data and compute the error
+         // Find corresponding features in the movCoord 
+        int corr_sample[3];
+        for (int i = 0; i<3; i++){
+            corr_sample[i] = RankInd[sample[i]][rand()%min(RankInd[sample[i]].size(),topK)];
+            //corr_sample[i] = RankInd[sample[i]][0];
+        }
+
+
+        // Estimate the transform from the samples to their corresponding points
+    for (int i = 0; i<3; i++){
+      for (int j = 0; j<3; j++){
+        x_in[j+i*3] = refCoord[sample[i]][j];
+        y_in[j+i*3] = movCoord[corr_sample[i]][j];
+      }
+    }
+
+    
+    estimateRigidTransform(x_in, y_in, h_RT);  //x_in = RT*y_in
+    // Tranform the data and compute the error
         TestRigidTransformError(refCoord, movCoord, RankInd, h_RT, thresh2, &h_count);
-		if (h_count>maxCount){
+
+
+    if (h_count>maxCount){
+           //printf("ref sample: %d %d %d\n",p1,p2,p3); 
+           //printf("corr_sample: %d %d %d\n",corr_sample[0],corr_sample[1],corr_sample[2]); 
+           //printf("iter:%d,maxCount:%d\n",iter,maxCount); 
            maxCount = h_count;
            for (int i = 0;i<12;i++){
             rigidtransform[i] = h_RT[i];
            }
        }
-	}
+  }
     
     for (int jj =0; jj<3;jj++){
-        printf("%f,%f,%f\n",rigidtransform[0+jj*3],rigidtransform[1+3*jj],rigidtransform[2+3*jj]);
+        printf("%f,%f,%f,%f\n",rigidtransform[0+jj*4],rigidtransform[1+4*jj],rigidtransform[2+4*jj],rigidtransform[3+4*jj]);
     }
 }
 

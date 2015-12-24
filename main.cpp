@@ -9,7 +9,7 @@
 #include <functional>   // std::bind
 
 
-bool sort_arr_compare(int a, int b, float* data) {
+bool sort_arr_desc_compare(int a, int b, float* data) {
     return data[a]>data[b];
 }
 
@@ -67,7 +67,7 @@ int main() {
   ///////////////////////////////////////////////////////////////////
 
   // Load second point cloud and save to TUDF
-  auto cloud2 = PointCloudIOf::loadFromFile("cloud_bin_1.ply");
+  auto cloud2 = PointCloudIOf::loadFromFile("cloud_bin_0.ply");
   pc2tsdf::TSDF tsdf2;
   pc2tsdf::makeTSDF(cloud2, voxelSize, truncationRadius, tsdf2);
 
@@ -111,53 +111,116 @@ int main() {
 
   ///////////////////////////////////////////////////////////////////
  
-  std::vector<std::vector<float>> score_matrix;  
-  score_matrix = ddd_compare_feat(feat1, feat2);
+  // Compare feature vectors and compute score matrix
+  std::vector<std::vector<float>> score_matrix1;  
+  score_matrix1 = ddd_compare_feat(feat1, feat2);
 
-  // for (int i = 0; i < feat2.size(); i++) {
-  //   std::cout << i << " " << score_matrix[0][i] << std::endl;
-  // }
-  float score_threshold = 0.5;
-
-  std::vector<std::vector<int>> match_rank;
+  // For each keypoint from first set, find indices of all keypoints
+  // in second set with score > match_score_threshold
+  float match_score_threshold = 0.5;
+  std::vector<std::vector<int>> match_rank1;
   for (int i = 0; i < feat1.size(); i++) {
-    std::vector<float> tmp_score_vect = score_matrix[i];
+    // Sort score vector in descending fashion
+    std::vector<float> tmp_score_vect = score_matrix1[i];
     float* tmp_score_vect_arr = &tmp_score_vect[0];
     int* tmp_score_idx = new int[tmp_score_vect.size()];
     std::iota(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), 0);
-    std::sort(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), std::bind(sort_arr_compare, std::placeholders::_1, std::placeholders::_2, tmp_score_vect_arr));
-    
-
+    std::sort(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), std::bind(sort_arr_desc_compare, std::placeholders::_1, std::placeholders::_2, tmp_score_vect_arr));
     std::vector<int> tmp_score_rank;
     for (int j = 0; j < feat2.size(); j++)
-      if (tmp_score_vect_arr[tmp_score_idx[j]] > score_threshold)
+      if (tmp_score_vect_arr[tmp_score_idx[j]] > match_score_threshold)
         tmp_score_rank.push_back(tmp_score_idx[j]);
-
-    std::cout << tmp_score_rank.size() << std::endl;
-    match_rank.push_back(tmp_score_rank);
-
-    // std::cout << "data:   "; for (int i=0; i<10; i++) std::cout << tmp_score_vect_arr[i] << " "; std::cout << "\n";
-    // std::cout << "index:  "; for (int i=0; i<10; i++) std::cout << tmp_score_rank[i] << " "; std::cout << "\n";
-    // std::cout << "sorted: "; for (int i=0; i<10; i++) std::cout << tmp_score_vect_arr[tmp_score_idx[i]] << " "; std::cout << "\n";
-    // std::cout << std::endl;
-
+    // std::cout << tmp_score_rank.size() << std::endl;
+    match_rank1.push_back(tmp_score_rank);
   }
 
+  // Inversely compare feature vectors and compute score matrix
+  std::vector<std::vector<float>> score_matrix2;  
+  score_matrix2 = ddd_compare_feat(feat2, feat1);
+
+  // For each keypoint from second set, find indices of all keypoints
+  // in first set with score > match_score_threshold
+  std::vector<std::vector<int>> match_rank2;
+  for (int i = 0; i < feat2.size(); i++) {
+    // Sort score vector in descending fashion
+    std::vector<float> tmp_score_vect = score_matrix2[i];
+    float* tmp_score_vect_arr = &tmp_score_vect[0];
+    int* tmp_score_idx = new int[tmp_score_vect.size()];
+    std::iota(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), 0);
+    std::sort(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), std::bind(sort_arr_desc_compare, std::placeholders::_1, std::placeholders::_2, tmp_score_vect_arr));
+    std::vector<int> tmp_score_rank;
+    for (int j = 0; j < feat1.size(); j++)
+      if (tmp_score_vect_arr[tmp_score_idx[j]] > match_score_threshold)
+        tmp_score_rank.push_back(tmp_score_idx[j]);
+    // std::cout << tmp_score_rank.size() << std::endl;
+    match_rank2.push_back(tmp_score_rank);
+  }
+
+  // Finalize match matrix (indices)
+  // A pair of points (with feature vectors f1 and f2) match iff
+  // ddd(f1,f2) > threshold && ddd(f2,f1) > threshold
+  std::vector<std::vector<int>> match_idx;
   for (int i = 0; i < feat1.size(); i++) {
-    std::cout << i << " ";
-    for (int j = 0; j < match_rank[i].size(); j++)
-      std::cout << match_rank[i][j] << " ";
+    std::vector<int> tmp_matches;
+    for (int j = 0; j < match_rank1[i].size(); j++) {
+      int tmp_match_idx = match_rank1[i][j];
+      if (std::find(match_rank2[tmp_match_idx].begin(), match_rank2[tmp_match_idx].end(), i) != match_rank2[tmp_match_idx].end())
+        tmp_matches.push_back(tmp_match_idx);
+    }
+    match_idx.push_back(tmp_matches);
+  }
+
+
+
+  for (int i = 0; i < feat1.size(); i++) {
+    std::cout << i << " | ";
+    for (int j = 0; j < match_idx[i].size(); j++)
+      std::cout << match_idx[i][j] << " ";
     std::cout << std::endl;
   }
 
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+
+  // for (int i = 0; i < feat2.size(); i++) {
+  //   std::cout << i << " | ";
+  //   for (int j = 0; j < match_rank2[i].size(); j++)
+  //     std::cout << match_rank2[i][j] << " ";
+  //   std::cout << std::endl;
+  // }
+
   float* Rt = new float[12];
-  ransacfitRt(world_keypoints2, world_keypoints1, match_rank, 10, 100000, 0.05f, Rt);
+  ransacfitRt(world_keypoints1, world_keypoints2, match_idx, 1, 100000, 0.05f, Rt);
 
 
 
+  for (int i = 0; i < cloud2.m_points.size(); i++) {
+
+    // float sx = (float)x;
+    // float sy = (float)y;
+    // float sz = (float)z;
+    vec3f tmp_point;
+    tmp_point.x = Rt[0] * cloud2.m_points[i].x + Rt[1] * cloud2.m_points[i].y + Rt[2] * cloud2.m_points[i].z;
+    tmp_point.y = Rt[4] * cloud2.m_points[i].x + Rt[5] * cloud2.m_points[i].y + Rt[6] * cloud2.m_points[i].z;
+    tmp_point.z = Rt[8] * cloud2.m_points[i].x + Rt[9] * cloud2.m_points[i].y + Rt[10] * cloud2.m_points[i].z;
+    tmp_point.x = tmp_point.x + Rt[3];
+    tmp_point.y = tmp_point.y + Rt[7];
+    tmp_point.z = tmp_point.z + Rt[11];
+
+    cloud2.m_points[i] = tmp_point;
 
 
 
+     // = cloud2.m_points[i];
+
+    // std::cout << tmp_point << std::endl;
+  }
+
+  std::string pcfile1 = "test1.ply";
+  PointCloudIOf::saveToFile(pcfile1, cloud1.m_points);
+  std::string pcfile2 = "test2.ply";
+  PointCloudIOf::saveToFile(pcfile2, cloud2.m_points);
 
 
 
