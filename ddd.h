@@ -1,4 +1,9 @@
 #include <vector>
+#include <numeric>      
+#include <algorithm>   
+#include <iostream>     
+#include <functional> 
+#include "ransacK.cpp"  
 
 ///////////////////////////////////////////////////////////////////////
 // Given a location (x, y, z) in the voxel volume, return a local voxel
@@ -248,4 +253,140 @@ std::vector<std::vector<float>> ddd_compare_feat(std::vector<std::vector<float>>
 
   sys_command("rm " + prob_tensor_filename);
   return score_matrix;
+}
+
+///////////////////////////////////////////////////////////////////////
+bool sort_arr_desc_compare(int a, int b, float* data) {
+    return data[a]>data[b];
+}
+
+///////////////////////////////////////////////////////////////////////
+void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float world_origin1_x, float world_origin1_y, float world_origin1_z,
+                float* scene_tsdf2, int x_dim2, int y_dim2, int z_dim2, float world_origin2_x, float world_origin2_y, float world_origin2_z, 
+                float voxelSize, float k_match_score_thresh, float ransac_k, float max_ransac_iter, float ransac_thresh, float* Rt) {
+
+  // Find keypoints in first TUDF
+  std::vector<std::vector<int>> keypoints1 = detect_keypoints(scene_tsdf1, x_dim1, y_dim1, z_dim1, 0.2f, 1.0f, 5, 100.0f);
+
+  // Filter out keypoints too close to the bounding box of the voxel volume
+  int local_patch_radius = 15;
+  std::vector<std::vector<int>> valid_keypoints1;
+  for (int i = 0; i < keypoints1.size(); i++)
+    if (keypoints1[i][0] - local_patch_radius >= 0 && keypoints1[i][0] + local_patch_radius < x_dim1 &&
+        keypoints1[i][1] - local_patch_radius >= 0 && keypoints1[i][1] + local_patch_radius < y_dim1 &&
+        keypoints1[i][2] - local_patch_radius >= 0 && keypoints1[i][2] + local_patch_radius < z_dim1)
+      valid_keypoints1.push_back(keypoints1[i]);
+
+  // Compute ddd features from keypoints
+  std::vector<std::vector<float>> feat1;  
+  feat1 = ddd_get_keypoint_feat(scene_tsdf1, x_dim1, y_dim1, z_dim1, valid_keypoints1, local_patch_radius);
+
+  // Convert valid keypoints from grid to world coordinates
+  std::vector<std::vector<float>> world_keypoints1;
+  for (int i = 0; i < valid_keypoints1.size(); i++) {
+    std::vector<float> tmp_keypoint;
+    tmp_keypoint.push_back((float) valid_keypoints1[i][0] * voxelSize + world_origin1_x);
+    tmp_keypoint.push_back((float) valid_keypoints1[i][1] * voxelSize + world_origin1_y);
+    tmp_keypoint.push_back((float) valid_keypoints1[i][2] * voxelSize + world_origin1_z);
+    world_keypoints1.push_back(tmp_keypoint);
+  }
+
+  //-------------------------------------------------------------//
+
+  // Find keypoints in second TUDF
+  std::vector<std::vector<int>> keypoints2 = detect_keypoints(scene_tsdf2, x_dim2, y_dim2, z_dim2, 0.2f, 1.0f, 5, 100.0f);
+
+  // Filter out keypoints too close to the bounding box of the voxel volume
+  local_patch_radius = 15;
+  std::vector<std::vector<int>> valid_keypoints2;
+  for (int i = 0; i < keypoints2.size(); i++)
+    if (keypoints2[i][0] - local_patch_radius >= 0 && keypoints2[i][0] + local_patch_radius < x_dim2 &&
+        keypoints2[i][1] - local_patch_radius >= 0 && keypoints2[i][1] + local_patch_radius < y_dim2 &&
+        keypoints2[i][2] - local_patch_radius >= 0 && keypoints2[i][2] + local_patch_radius < z_dim2)
+      valid_keypoints2.push_back(keypoints2[i]);
+
+  // Compute ddd features from keypoints
+  std::vector<std::vector<float>> feat2;  
+  feat2 = ddd_get_keypoint_feat(scene_tsdf2, x_dim2, y_dim2, z_dim2, valid_keypoints2, local_patch_radius);
+
+  // Convert valid keypoints from grid to world coordinates
+  std::vector<std::vector<float>> world_keypoints2;
+  for (int i = 0; i < valid_keypoints2.size(); i++) {
+    std::vector<float> tmp_keypoint;
+    tmp_keypoint.push_back((float) valid_keypoints2[i][0] * voxelSize + world_origin2_x);
+    tmp_keypoint.push_back((float) valid_keypoints2[i][1] * voxelSize + world_origin2_y);
+    tmp_keypoint.push_back((float) valid_keypoints2[i][2] * voxelSize + world_origin2_z);
+    world_keypoints2.push_back(tmp_keypoint);
+  }
+
+  //-------------------------------------------------------------//
+ 
+  // Compare feature vectors and compute score matrix
+  std::vector<std::vector<float>> score_matrix1;  
+  score_matrix1 = ddd_compare_feat(feat1, feat2);
+
+  // For each keypoint from first set, find indices of all keypoints
+  // in second set with score > k_match_score_thresh
+  std::vector<std::vector<int>> match_rank1;
+  for (int i = 0; i < feat1.size(); i++) {
+    // Sort score vector in descending fashion
+    std::vector<float> tmp_score_vect = score_matrix1[i];
+    float* tmp_score_vect_arr = &tmp_score_vect[0];
+    int* tmp_score_idx = new int[tmp_score_vect.size()];
+    std::iota(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), 0);
+    std::sort(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), std::bind(sort_arr_desc_compare, std::placeholders::_1, std::placeholders::_2, tmp_score_vect_arr));
+    std::vector<int> tmp_score_rank;
+    for (int j = 0; j < feat2.size(); j++)
+      if (tmp_score_vect_arr[tmp_score_idx[j]] > k_match_score_thresh)
+        tmp_score_rank.push_back(tmp_score_idx[j]);
+    // std::cout << tmp_score_rank.size() << std::endl;
+    match_rank1.push_back(tmp_score_rank);
+  }
+
+  // Inversely compare feature vectors and compute score matrix
+  std::vector<std::vector<float>> score_matrix2;  
+  score_matrix2 = ddd_compare_feat(feat2, feat1);
+
+  // For each keypoint from second set, find indices of all keypoints
+  // in first set with score > k_match_score_thresh
+  std::vector<std::vector<int>> match_rank2;
+  for (int i = 0; i < feat2.size(); i++) {
+    // Sort score vector in descending fashion
+    std::vector<float> tmp_score_vect = score_matrix2[i];
+    float* tmp_score_vect_arr = &tmp_score_vect[0];
+    int* tmp_score_idx = new int[tmp_score_vect.size()];
+    std::iota(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), 0);
+    std::sort(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), std::bind(sort_arr_desc_compare, std::placeholders::_1, std::placeholders::_2, tmp_score_vect_arr));
+    std::vector<int> tmp_score_rank;
+    for (int j = 0; j < feat1.size(); j++)
+      if (tmp_score_vect_arr[tmp_score_idx[j]] > k_match_score_thresh)
+        tmp_score_rank.push_back(tmp_score_idx[j]);
+    // std::cout << tmp_score_rank.size() << std::endl;
+    match_rank2.push_back(tmp_score_rank);
+  }
+
+  // Finalize match matrix (indices)
+  // A pair of points (with feature vectors f1 and f2) match iff
+  // ddd(f1,f2) > threshold && ddd(f2,f1) > threshold
+  std::vector<std::vector<int>> match_idx;
+  for (int i = 0; i < feat1.size(); i++) {
+    std::vector<int> tmp_matches;
+    for (int j = 0; j < match_rank1[i].size(); j++) {
+      int tmp_match_idx = match_rank1[i][j];
+      if (std::find(match_rank2[tmp_match_idx].begin(), match_rank2[tmp_match_idx].end(), i) != match_rank2[tmp_match_idx].end())
+        tmp_matches.push_back(tmp_match_idx);
+    }
+    match_idx.push_back(tmp_matches);
+  }
+
+  // DEBUG
+  for (int i = 0; i < feat1.size(); i++) {
+    std::cout << i << " | ";
+    for (int j = 0; j < match_idx[i].size(); j++)
+      std::cout << match_idx[i][j] << " ";
+    std::cout << std::endl;
+  }
+
+  // Compute Rt transform from second to first point cloud (k-ransac)
+  ransacfitRt(world_keypoints1, world_keypoints2, match_idx, ransac_k, max_ransac_iter, ransac_thresh, Rt);
 }
