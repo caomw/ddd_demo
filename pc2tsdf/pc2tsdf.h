@@ -1,8 +1,13 @@
 
+#ifndef __PC2TSDF_H_
+#define __PC2TSDF_H_
+
 #include "ext/common.h"
 #include "ext/utility.h"
 #include "ext/stringUtil.h"
 #include "ext/vec3.h"
+#include "ext/vec4.h"
+#include "ext/mat4.h"
 #include "ext/grid3.h"
 #include "ext/boundingBox3.h"
 
@@ -79,6 +84,17 @@ struct UniformAccelerator
     float cubeSize;
     Grid3<Entry> data;
 
+    UniformAccelerator() {}
+    UniformAccelerator(const std::vector<vec3f> &points, float _cubeSize)
+    {
+        bbox3f _bbox;
+        for (auto &v : points)
+            _bbox.include(v);
+        init(_bbox, _cubeSize);
+        for (auto &v : points)
+            addPoint(v);
+    }
+
     void init(const bbox3f &_bbox, float _cubeSize)
     {
         bbox = _bbox;
@@ -154,3 +170,5 @@ inline void makeTSDF(const PointCloudf &cloud, float voxelSize, float truncation
 }
 
 #include "ext/pc2tsdf.inl"
+
+#endif

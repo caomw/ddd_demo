@@ -59,7 +59,7 @@ public:
 
 	std::vector<vec3<FloatType>> m_points;
 	std::vector<vec3<FloatType>> m_normals;
-	std::vector<vec3<FloatType>> m_colors;
+	std::vector<vec4<FloatType>> m_colors;
 private:
 };
 

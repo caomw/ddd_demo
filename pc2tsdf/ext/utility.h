@@ -249,7 +249,11 @@ namespace util
 	//
 	// file utility
 	//
-	bool fileExists(const std::string& filename);
+	inline bool fileExists(const std::string& filename)
+    {
+        std::ifstream file(filename);
+        return (!file.fail());
+    }
 	//! returns the file size in bytes
 	size_t getFileSize(const std::string& filename);
 	void copyFile(const std::string& sourceFile, const std::string& destFile);

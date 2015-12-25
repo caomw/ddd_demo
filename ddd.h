@@ -261,6 +261,22 @@ bool sort_arr_desc_compare(int a, int b, float* data) {
 }
 
 ///////////////////////////////////////////////////////////////////////
+std::vector<std::vector<int>> detect_keypoints_filtered(float* scene_tsdf, int x_dim, int y_dim, int z_dim) {
+    // Find keypoints in TUDF
+    std::vector<std::vector<int>> keypoints = detect_keypoints(scene_tsdf, x_dim, y_dim, z_dim, 0.2f, 1.0f, 5, 100.0f);
+
+    // Filter out keypoints too close to the bounding box of the voxel volume
+    int local_patch_radius = 15;
+    std::vector<std::vector<int>> valid_keypoints;
+    for (int i = 0; i < keypoints.size(); i++)
+        if (keypoints[i][0] - local_patch_radius >= 0 && keypoints[i][0] + local_patch_radius < x_dim &&
+            keypoints[i][1] - local_patch_radius >= 0 && keypoints[i][1] + local_patch_radius < y_dim &&
+            keypoints[i][2] - local_patch_radius >= 0 && keypoints[i][2] + local_patch_radius < z_dim)
+            valid_keypoints.push_back(keypoints[i]);
+    return valid_keypoints;
+}
+
+///////////////////////////////////////////////////////////////////////
 void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float world_origin1_x, float world_origin1_y, float world_origin1_z,
                 float* scene_tsdf2, int x_dim2, int y_dim2, int z_dim2, float world_origin2_x, float world_origin2_y, float world_origin2_z, 
                 float voxelSize, float k_match_score_thresh, float ransac_k, float max_ransac_iter, float ransac_thresh, float* Rt) {
