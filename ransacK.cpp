@@ -579,13 +579,13 @@ void TestRigidTransformError(const std::vector< std::vector<float> > refCoord, c
             float * RTthis, float thresh2, int *d_counts)
 {
   int cnt = 0;
-  for (int i=0; i<movCoord.size(); i++) {
+  for (int i=0; i<refCoord.size(); i++) {
     if (RankInd[i].size()>0){
-            float x1 = refCoord[i][0];
-            float y1 = refCoord[i][1];
-            float z1 = refCoord[i][2];
+          float x1 = refCoord[i][0];
+          float y1 = refCoord[i][1];
+          float z1 = refCoord[i][2];
 
-      float x2 = movCoord[RankInd[i][0]][0];
+          float x2 = movCoord[RankInd[i][0]][0];
           float y2 = movCoord[RankInd[i][0]][1];
           float z2 = movCoord[RankInd[i][0]][2];
 

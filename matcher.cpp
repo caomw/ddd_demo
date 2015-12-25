@@ -11,7 +11,7 @@ int main()
     const float truncationRadius = 0.05f;
     const float maxKeypointMatchDist = 0.02f;
     const int fragmentCount = 57;
-    const string fragmentPrefix = "../ddd_data/cloud_bin_";
+    const string fragmentPrefix = "/data/andyz/kinfu/data/augICLNUIMDataset/fragments/livingroom1-fragments-ply/cloud_bin_";
 
     vector<string> allFragments;
     
@@ -26,11 +26,11 @@ int main()
     {
         for (int j = 0; j < fragmentCount; j++)
         {
-            const string resultFilename = "../ddd_results/match" + to_string(i) + "-" + to_string(j) + ".txt";
+            const string resultFilename = "/results/match" + to_string(i) + "-" + to_string(j) + ".txt";
             if (i <= j || util::fileExists(resultFilename))
                 continue;
             
-            auto result = FragmentMatcher::match(allFragments[i], allFragments[j], voxelSize, truncationRadius, maxKeypointMatchDist);
+            auto result = FragmentMatcher::match(allFragments[i], allFragments[j], i, j, voxelSize, truncationRadius, maxKeypointMatchDist);
             result.saveASCII(resultFilename);
         }
     }

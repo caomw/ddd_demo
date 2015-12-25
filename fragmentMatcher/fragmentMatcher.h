@@ -23,10 +23,10 @@ public:
             {
                 file << match.posA << " " << match.posB << " " << match.alignmentError << std::endl;
             }
-            file << keypointsA.size() << "keypoints A" << std::endl;
+            file << keypointsA.size() << " keypoints A" << std::endl;
             for (vec3f v : keypointsA)
                 file << v << std::endl;
-            file << keypointsB.size() << "keypoints B" << std::endl;
+            file << keypointsB.size() << " keypoints B" << std::endl;
             for (vec3f v : keypointsB)
                 file << v << std::endl;
         }
@@ -39,7 +39,7 @@ public:
         std::vector<KeypointMatch> matches;
     };
 
-    static Result match(const std::string &pointCloudFileA, const std::string &pointCloudFileB, float voxelSize, float truncationRadius, float maxKeypointMatchDist)
+    static Result match(const std::string &pointCloudFileA, const std::string &pointCloudFileB, int cloudIndA, int cloudIndB, float voxelSize, float truncationRadius, float maxKeypointMatchDist)
     {
         std::cout << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
 
@@ -96,6 +96,31 @@ public:
         result.matchFound = result.matches.size() > 0;
 
         std::cout << "Keypoint matches found: " << result.matches.size() << std::endl;
+
+        ///////////////////////////////////////////////////////////////////
+        // DEBUG: save point aligned point clouds
+
+        auto cloud1 = PointCloudIOf::loadFromFile(pointCloudFileA);
+        auto cloud2 = PointCloudIOf::loadFromFile(pointCloudFileB);
+
+        for (int i = 0; i < cloud2.m_points.size(); i++) {
+          vec3f tmp_point;
+          tmp_point.x = Rt[0] * cloud2.m_points[i].x + Rt[1] * cloud2.m_points[i].y + Rt[2] * cloud2.m_points[i].z;
+          tmp_point.y = Rt[4] * cloud2.m_points[i].x + Rt[5] * cloud2.m_points[i].y + Rt[6] * cloud2.m_points[i].z;
+          tmp_point.z = Rt[8] * cloud2.m_points[i].x + Rt[9] * cloud2.m_points[i].y + Rt[10] * cloud2.m_points[i].z;
+          tmp_point.x = tmp_point.x + Rt[3];
+          tmp_point.y = tmp_point.y + Rt[7];
+          tmp_point.z = tmp_point.z + Rt[11];
+          cloud2.m_points[i] = tmp_point;
+        }
+
+        std::string pcfile1 = "results/debug" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndA) + ".ply";
+        PointCloudIOf::saveToFile(pcfile1, cloud1);
+
+        std::string pcfile2 = "results/debug" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndB) + ".ply";
+        PointCloudIOf::saveToFile(pcfile2, cloud2);
+
+
 
         return result;
     }

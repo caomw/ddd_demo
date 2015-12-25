@@ -5,7 +5,7 @@
 #include <functional> 
 #include "ransacK.cpp"  
 
-const bool dddVerbose = false;
+const bool ddd_verbose = true;
 
 ///////////////////////////////////////////////////////////////////////
 // Given a location (x, y, z) in the voxel volume, return a local voxel
@@ -46,7 +46,7 @@ void sys_command(std::string str) {
 }
 
 ///////////////////////////////////////////////////////////////////////
-std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, int y_dim, int z_dim, std::vector<std::vector<int>> &keypoints, int patch_radius) {
+std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, int y_dim, int z_dim, std::vector<std::vector<int>> &keypoints, int patch_radius, bool is_verbose) {
 
   // Init tensor files for marvin
   std::string data_tensor_filename = "TMPdata.tensor";
@@ -96,8 +96,8 @@ std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, 
 
   // Extract local volume comparisons and save to tensor files
   for (int i = 0; i < keypoints.size(); i++) {
-    if (dddVerbose)
-      std::cout << "Iteration " << i + 1 << "/" << num_keypoints << ": " << keypoints[i][0] << " " << keypoints[i][1] << " " << keypoints[i][2] << std::endl;
+    if (ddd_verbose)
+      std::cout << "Loading keypoint: " << i + 1 << "/" << num_keypoints << ": " << keypoints[i][0] << " " << keypoints[i][1] << " " << keypoints[i][2] << std::endl;
     // Extract local patch volume
     float *local_patch = new float[patch_dim * patch_dim * patch_dim];
     get_keypoint_volume(volume, x_dim, y_dim, z_dim, keypoints[i][0], keypoints[i][1], keypoints[i][2], patch_radius, local_patch);
@@ -126,7 +126,10 @@ std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, 
 
   // Run marvin to get tensor file of feature vectors
   sys_command("rm " + feat_tensor_filename);
-  sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " feat " + feat_tensor_filename);
+  if (is_verbose)
+    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " feat " + feat_tensor_filename);
+  else
+    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " feat " + feat_tensor_filename + " >/dev/null");
   sys_command("rm " + data_tensor_filename);
   sys_command("rm " + label_tensor_filename);
 
@@ -151,7 +154,7 @@ std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, 
 }
 
 ///////////////////////////////////////////////////////////////////////
-std::vector<std::vector<float>> ddd_compare_feat(std::vector<std::vector<float>> &feat1, std::vector<std::vector<float>> &feat2) {
+std::vector<std::vector<float>> ddd_compare_feat(std::vector<std::vector<float>> &feat1, std::vector<std::vector<float>> &feat2, bool is_verbose) {
 
   int feat_dim = 2048;
   int num_cases = feat1.size() * feat2.size();
@@ -203,8 +206,8 @@ std::vector<std::vector<float>> ddd_compare_feat(std::vector<std::vector<float>>
   // Save feature vectors to tensor file
   for (int i = 0; i < feat1.size(); i++) {
     for (int j = 0; j < feat2.size(); j++) {
-      if (dddVerbose)
-        std::cout << "Iteration " << i*feat2.size() + j << "/" << feat1.size() * feat2.size() - 1 << std::endl;
+      if (ddd_verbose)
+        std::cout << "Loading keypoint comparison: " << i*feat2.size() + j << "/" << feat1.size() * feat2.size() - 1 << std::endl;
       // Save feature vector 2
       for (int k = 0; k < feat_dim; k++) {
         float feat2_val = feat2[j][k];
@@ -233,7 +236,10 @@ std::vector<std::vector<float>> ddd_compare_feat(std::vector<std::vector<float>>
   // Run marvin to get tensor file of match scores
   model_filename = "ddd/dddnet.marvin";
   sys_command("rm " + prob_tensor_filename);
-  sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " prob " + prob_tensor_filename);
+  if (is_verbose)
+    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " prob " + prob_tensor_filename);
+  else
+    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " prob " + prob_tensor_filename + " >/dev/null");
   sys_command("rm " + data_tensor_filename);
   sys_command("rm " + label_tensor_filename);
 
@@ -299,7 +305,7 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
 
   // Compute ddd features from keypoints
   std::vector<std::vector<float>> feat1;  
-  feat1 = ddd_get_keypoint_feat(scene_tsdf1, x_dim1, y_dim1, z_dim1, valid_keypoints1, local_patch_radius);
+  feat1 = ddd_get_keypoint_feat(scene_tsdf1, x_dim1, y_dim1, z_dim1, valid_keypoints1, local_patch_radius, ddd_verbose);
 
   // Convert valid keypoints from grid to world coordinates
   std::vector<std::vector<float>> world_keypoints1;
@@ -327,7 +333,7 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
 
   // Compute ddd features from keypoints
   std::vector<std::vector<float>> feat2;  
-  feat2 = ddd_get_keypoint_feat(scene_tsdf2, x_dim2, y_dim2, z_dim2, valid_keypoints2, local_patch_radius);
+  feat2 = ddd_get_keypoint_feat(scene_tsdf2, x_dim2, y_dim2, z_dim2, valid_keypoints2, local_patch_radius, ddd_verbose);
 
   // Convert valid keypoints from grid to world coordinates
   std::vector<std::vector<float>> world_keypoints2;
@@ -343,7 +349,7 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
  
   // Compare feature vectors and compute score matrix
   std::vector<std::vector<float>> score_matrix1;  
-  score_matrix1 = ddd_compare_feat(feat1, feat2);
+  score_matrix1 = ddd_compare_feat(feat1, feat2, ddd_verbose);
 
   // For each keypoint from first set, find indices of all keypoints
   // in second set with score > k_match_score_thresh
@@ -365,7 +371,7 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
 
   // Inversely compare feature vectors and compute score matrix
   std::vector<std::vector<float>> score_matrix2;  
-  score_matrix2 = ddd_compare_feat(feat2, feat1);
+  score_matrix2 = ddd_compare_feat(feat2, feat1, ddd_verbose);
 
   // For each keypoint from second set, find indices of all keypoints
   // in first set with score > k_match_score_thresh
@@ -385,7 +391,25 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
     match_rank2.push_back(tmp_score_rank);
   }
 
-  // Finalize match matrix (indices)
+  for (int i = 0; i < feat1.size(); i++) {
+    std::cout << i << " | ";
+    for (int j = 0; j < match_rank1[i].size(); j++)
+        std::cout << match_rank1[i][j] << " ";
+    std::cout << std::endl;
+  } 
+
+  std::cout << std::endl;
+  std::cout << std::endl;
+  std::cout << std::endl;
+
+  for (int i = 0; i < feat2.size(); i++) {
+    std::cout << i << " | ";
+    for (int j = 0; j < match_rank2[i].size(); j++)
+        std::cout << match_rank2[i][j] << " ";
+    std::cout << std::endl;
+  } 
+
+  // Finalize match matrix (indices) unofficial reflexive property
   // A pair of points (with feature vectors f1 and f2) match iff
   // ddd(f1,f2) > threshold && ddd(f2,f1) > threshold
   std::vector<std::vector<int>> match_idx;
@@ -400,7 +424,7 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
   }
 
   // DEBUG
-  if (dddVerbose) {
+  if (ddd_verbose) {
     for (int i = 0; i < feat1.size(); i++) {
     std::cout << i << " | ";
     for (int j = 0; j < match_idx[i].size(); j++)
@@ -409,6 +433,10 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
     }
   }
 
+  std::cout << world_keypoints1.size() << std::endl;
+  std::cout << world_keypoints2.size() << std::endl;
+
   // Compute Rt transform from second to first point cloud (k-ransac)
+  std::cout << "Estimating rigid transform..." << std::endl;
   ransacfitRt(world_keypoints1, world_keypoints2, match_idx, ransac_k, max_ransac_iter, ransac_thresh, Rt);
 }
