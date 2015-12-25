@@ -5,6 +5,8 @@
 #include <functional> 
 #include "ransacK.cpp"  
 
+const bool dddVerbose = false;
+
 ///////////////////////////////////////////////////////////////////////
 // Given a location (x, y, z) in the voxel volume, return a local voxel
 // patch volume around (x, y, z). Given radius r, the patch dimensions
@@ -94,7 +96,8 @@ std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, 
 
   // Extract local volume comparisons and save to tensor files
   for (int i = 0; i < keypoints.size(); i++) {
-    std::cout << "Iteration " << i + 1 << "/" << num_keypoints << ": " << keypoints[i][0] << " " << keypoints[i][1] << " " << keypoints[i][2] << std::endl;
+    if (dddVerbose)
+      std::cout << "Iteration " << i + 1 << "/" << num_keypoints << ": " << keypoints[i][0] << " " << keypoints[i][1] << " " << keypoints[i][2] << std::endl;
     // Extract local patch volume
     float *local_patch = new float[patch_dim * patch_dim * patch_dim];
     get_keypoint_volume(volume, x_dim, y_dim, z_dim, keypoints[i][0], keypoints[i][1], keypoints[i][2], patch_radius, local_patch);
@@ -200,7 +203,8 @@ std::vector<std::vector<float>> ddd_compare_feat(std::vector<std::vector<float>>
   // Save feature vectors to tensor file
   for (int i = 0; i < feat1.size(); i++) {
     for (int j = 0; j < feat2.size(); j++) {
-      std::cout << "Iteration " << i*feat2.size() + j << "/" << feat1.size() * feat2.size() - 1 << std::endl;
+      if (dddVerbose)
+        std::cout << "Iteration " << i*feat2.size() + j << "/" << feat1.size() * feat2.size() - 1 << std::endl;
       // Save feature vector 2
       for (int k = 0; k < feat_dim; k++) {
         float feat2_val = feat2[j][k];
@@ -396,11 +400,13 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
   }
 
   // DEBUG
-  for (int i = 0; i < feat1.size(); i++) {
+  if (dddVerbose) {
+    for (int i = 0; i < feat1.size(); i++) {
     std::cout << i << " | ";
     for (int j = 0; j < match_idx[i].size(); j++)
-      std::cout << match_idx[i][j] << " ";
+        std::cout << match_idx[i][j] << " ";
     std::cout << std::endl;
+    }
   }
 
   // Compute Rt transform from second to first point cloud (k-ransac)

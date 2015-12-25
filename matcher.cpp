@@ -22,16 +22,16 @@ int main()
         allFragments.push_back(fragmentFilename);
     }
     
-    ofstream file("dump.txt");
     for (int i = 0; i < fragmentCount; i++)
     {
         for (int j = 0; j < fragmentCount; j++)
         {
-            if (i == 0 && j >= 1)
-            {
-                auto result = FragmentMatcher::match(allFragments[i], allFragments[j], voxelSize, truncationRadius, maxKeypointMatchDist);
-                file << result.matches.size() << endl;
-            }
+            const string resultFilename = "../ddd_results/match" + to_string(i) + "-" + to_string(j) + ".txt";
+            if (i <= j || util::fileExists(resultFilename))
+                continue;
+            
+            auto result = FragmentMatcher::match(allFragments[i], allFragments[j], voxelSize, truncationRadius, maxKeypointMatchDist);
+            result.saveASCII(resultFilename);
         }
     }
 

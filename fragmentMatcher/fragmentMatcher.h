@@ -13,6 +13,23 @@ public:
 
     struct Result
     {
+        void saveASCII(const std::string &filename) const
+        {
+            std::ofstream file(filename);
+            file << "transform" << std::endl;
+            file << transformBToA << std::endl;
+            file << matches.size() << " matches" << std::endl;
+            for (const auto &match : matches)
+            {
+                file << match.posA << " " << match.posB << " " << match.alignmentError << std::endl;
+            }
+            file << keypointsA.size() << "keypoints A" << std::endl;
+            for (vec3f v : keypointsA)
+                file << v << std::endl;
+            file << keypointsB.size() << "keypoints B" << std::endl;
+            for (vec3f v : keypointsB)
+                file << v << std::endl;
+        }
         bool matchFound;
 
         mat4f transformBToA;
