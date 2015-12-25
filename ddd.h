@@ -439,4 +439,16 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
   // Compute Rt transform from second to first point cloud (k-ransac)
   std::cout << "Estimating rigid transform..." << std::endl;
   ransacfitRt(world_keypoints1, world_keypoints2, match_idx, ransac_k, max_ransac_iter, ransac_thresh, Rt);
+
+  // world_keypoints1
+  // world_keypoints2
+  // match_idx
+  // ransac_k
+  // max_ransac_iter
+  // ransac_thresh
+
+
+
+
+
 }

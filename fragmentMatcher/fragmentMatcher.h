@@ -39,6 +39,13 @@ public:
         std::vector<KeypointMatch> matches;
     };
 
+    static float gen_random_float(float min, float max) {
+      std::random_device rd;
+      std::mt19937 mt(rd());
+      std::uniform_real_distribution<double> dist(min, max - 0.0001);
+      return dist(mt);
+    }
+
     static Result match(const std::string &pointCloudFileA, const std::string &pointCloudFileB, int cloudIndA, int cloudIndB, float voxelSize, float truncationRadius, float maxKeypointMatchDist)
     {
         std::cout << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
@@ -103,6 +110,7 @@ public:
         auto cloud1 = PointCloudIOf::loadFromFile(pointCloudFileA);
         auto cloud2 = PointCloudIOf::loadFromFile(pointCloudFileB);
 
+        // Rotate B points into A using Rt
         for (int i = 0; i < cloud2.m_points.size(); i++) {
           vec3f tmp_point;
           tmp_point.x = Rt[0] * cloud2.m_points[i].x + Rt[1] * cloud2.m_points[i].y + Rt[2] * cloud2.m_points[i].z;
@@ -113,6 +121,19 @@ public:
           tmp_point.z = tmp_point.z + Rt[11];
           cloud2.m_points[i] = tmp_point;
         }
+
+        // Make point clouds colorful
+        ml::vec4f color1;
+        for (int i = 0; i < 3; i++)
+          color1[i] = gen_random_float(0.0, 1.0);
+        for (int i = 0; i < cloud1.m_points.size(); i++)
+          cloud1.m_colors[i] = color1;
+
+        ml::vec4f color2;
+        for (int i = 0; i < 3; i++)
+          color2[i] = gen_random_float(0.0, 1.0);
+        for (int i = 0; i < cloud2.m_points.size(); i++)
+          cloud2.m_colors[i] = color2;
 
         std::string pcfile1 = "results/debug" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndA) + ".ply";
         PointCloudIOf::saveToFile(pcfile1, cloud1);
