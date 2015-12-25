@@ -2,12 +2,12 @@
 #include "detect_keypoints.h"
 #include "ddd.h"
 
-float gen_random_float(float min, float max) {
-  std::random_device rd;
-  std::mt19937 mt(rd());
-  std::uniform_real_distribution<double> dist(min, max - 0.0001);
-  return dist(mt);
-}
+// float gen_random_float(float min, float max) {
+//   std::random_device rd;
+//   std::mt19937 mt(rd());
+//   std::uniform_real_distribution<double> dist(min, max - 0.0001);
+//   return dist(mt);
+// }
 
 int main() {
 

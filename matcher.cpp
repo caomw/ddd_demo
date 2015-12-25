@@ -26,7 +26,7 @@ int main()
     {
         for (int j = 0; j < fragmentCount; j++)
         {
-            const string resultFilename = "/results/match" + to_string(i) + "-" + to_string(j) + ".txt";
+            const string resultFilename = "results/match" + to_string(i) + "-" + to_string(j) + ".txt";
             if (i <= j || util::fileExists(resultFilename))
                 continue;
             
