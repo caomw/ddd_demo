@@ -52,7 +52,7 @@ public:
         ///////////////////////////////////////////////////////////////////
 
         const float k_match_score_thresh = 0.5f;
-        const float ransac_k = 5; // RANSAC over top-k > k_match_score_thresh
+        const float ransac_k = 3; // RANSAC over top-k > k_match_score_thresh
         const float max_ransac_iter = 1000000;
         const float ransac_inlier_thresh = 0.05f;
         
