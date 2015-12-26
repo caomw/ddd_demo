@@ -15,3 +15,5 @@ end
 error3D_threshold = 0.05;
 [RtRANSAC, inliers] = ransacfitRt([matches(:,1:3)'; matches(:,4:6)'], error3D_threshold, 1);
 dlmwrite('../TMPrt.txt', cat(1, RtRANSAC, [0 0 0 1]), ' ');
+RtRANSAC
+inliers

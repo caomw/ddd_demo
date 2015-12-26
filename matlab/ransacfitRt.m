@@ -34,7 +34,7 @@ function [Rt, inliers] = ransacfitRt(x, t, feedback)
 
     % Now do a final least squares fit on the data points considered to
     % be inliers.
-%     Rt = estimateRt(x(:,inliers));
+    Rt = estimateRt(x(:,inliers));
 end
 
 %--------------------------------------------------------------------------

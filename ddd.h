@@ -424,25 +424,30 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
 
   // Compute Rt transform from second to first point cloud (k-ransac)
   std::cout << "Estimating rigid transform..." << std::endl;
-  ransacfitRt(world_keypoints1, world_keypoints2, match_idx, ransac_k, max_ransac_iter, ransac_thresh, Rt);
+  int num_inliers = ransacfitRt(world_keypoints1, world_keypoints2, match_idx, ransac_k, max_ransac_iter, ransac_thresh, Rt);
 
-  // DEBUG: Save stuff for MATLAB RANSAC
-  FILE *fp = fopen("TMPkeypoints1.txt", "w");
-  for (int i = 0; i < world_keypoints1.size(); i++)
-    fprintf(fp, "%f %f %f\n", world_keypoints1[i][0], world_keypoints1[i][1], world_keypoints1[i][2]);
-  fclose(fp);
-  fp = fopen("TMPkeypoints2.txt", "w");
-  for (int i = 0; i < world_keypoints2.size(); i++)
-    fprintf(fp, "%f %f %f\n", world_keypoints2[i][0], world_keypoints2[i][1], world_keypoints2[i][2]);
-  fclose(fp);
-  fp = fopen("TMPmatches.txt", "w");
-  for (int i = 0; i < match_idx.size(); i++) {
-    fprintf(fp, "%d ", i + 1);
-    for (int j = 0; j < match_idx[i].size(); j++)
-      fprintf(fp, "%d ", match_idx[i][j] + 1);
-    fprintf(fp, "\n");
+  // // DEBUG: Save stuff for MATLAB RANSAC
+  // FILE *fp = fopen("TMPkeypoints1.txt", "w");
+  // for (int i = 0; i < world_keypoints1.size(); i++)
+  //   fprintf(fp, "%f %f %f\n", world_keypoints1[i][0], world_keypoints1[i][1], world_keypoints1[i][2]);
+  // fclose(fp);
+  // fp = fopen("TMPkeypoints2.txt", "w");
+  // for (int i = 0; i < world_keypoints2.size(); i++)
+  //   fprintf(fp, "%f %f %f\n", world_keypoints2[i][0], world_keypoints2[i][1], world_keypoints2[i][2]);
+  // fclose(fp);
+  // fp = fopen("TMPmatches.txt", "w");
+  // for (int i = 0; i < match_idx.size(); i++) {
+  //   fprintf(fp, "%d ", i + 1);
+  //   for (int j = 0; j < match_idx[i].size(); j++)
+  //     fprintf(fp, "%d ", match_idx[i][j] + 1);
+  //   fprintf(fp, "\n");
+  // }
+  // fclose(fp);
+
+  bool use_matlab_icp = true;
+  if (use_matlab_icp) {
+    
   }
-  fclose(fp);
 
 
 
