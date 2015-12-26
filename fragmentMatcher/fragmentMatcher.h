@@ -79,13 +79,14 @@ public:
 
     static Result match(const std::string &pointCloudFileA, const std::string &pointCloudFileB, int cloudIndA, int cloudIndB, float voxelSize, float truncationRadius, float maxKeypointMatchDist)
     {
-        std::cout << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
-
+        std::cout << std::endl << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
+        tic();
         FlatTSDF tsdfA = plyToTSDF(pointCloudFileA, voxelSize, truncationRadius);
         FlatTSDF tsdfB = plyToTSDF(pointCloudFileB, voxelSize, truncationRadius);
-
-        std::cout << "OriginA: " << tsdfA.origin << std::endl;
-        std::cout << "DimA: " << tsdfA.dim << std::endl;
+        std::cout << "Loading point clouds as TSDFs. ";
+        toc();
+        // std::cout << "OriginA: " << tsdfA.origin << std::endl;
+        // std::cout << "DimA: " << tsdfA.dim << std::endl;
 
         ///////////////////////////////////////////////////////////////////
 
@@ -144,6 +145,7 @@ public:
         // DISABLE ICP FOR NOW (too slow)
         bool use_matlab_icp = false;
         if (use_matlab_icp) {
+          tic();
           // Save point clouds to files for matlab to read
           auto cloud1 = PointCloudIOf::loadFromFile(pointCloudFileA);
           FILE *fp = fopen("TMPpointcloud1.txt", "w");
@@ -162,7 +164,7 @@ public:
           fclose(fp);
 
           // Run matlab ICP
-          sys_command("cd matlab; matlab -nojvm < main.m; cd ..");
+          sys_command("cd matlab; matlab -nojvm < main.m >/dev/null; cd ..");
           float *icp_Rt = new float[16];
           int iret;
           fp = fopen("TMPicpRt.txt", "r");
@@ -178,12 +180,16 @@ public:
           sys_command("rm TMPpointcloud1.txt");
           sys_command("rm TMPpointcloud2.txt");
           sys_command("rm TMPicpRt.txt");
+
+          std::cout << "Using ICP to re-adjust rigid transform. ";
+          toc();
         }
 
         const bool debugDump = true;
         if (debugDump) {
             ///////////////////////////////////////////////////////////////////
             // DEBUG: save point aligned point clouds
+            tic();
 
             auto cloud1 = PointCloudIOf::loadFromFile(pointCloudFileA);
             auto cloud2 = PointCloudIOf::loadFromFile(pointCloudFileB);
@@ -214,6 +220,9 @@ public:
             PointCloudIOf::saveToFile(pcfile1, cloud1);
             std::string pcfile2 = "results/debug" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndB) + ".ply";
             PointCloudIOf::saveToFile(pcfile2, cloud2);
+
+            std::cout << "Saving point cloud visualizations. ";
+            toc();
         }
 
         ///////////////////////////////////////////////////////////////////

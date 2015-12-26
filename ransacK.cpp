@@ -653,7 +653,7 @@ std::vector<int> TestRigidTransformError(const std::vector< std::vector<float> >
 
 int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vector< std::vector<float> > movCoord,
                 const std::vector< std::vector<int> > RankInd, const int topK,
-                const int numLoops, const float thresh, float* rigidtransform)
+                const int numLoops, const float thresh, float* rigidtransform, bool is_verbose)
 {
   //RankInd for every refCoord point top K matches RankInd.size()==refNum
   int refNum = refCoord.size();
@@ -670,7 +670,7 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
   int sample[3];
   int maxCount = -1;
   std::vector<int> bestinlier;
-  // int conv_num_loops = numLoops;
+  int conv_num_loops = numLoops;
   for (int iter = 0; iter < numLoops; ++iter) {
     // Draw three points from refCoord
     int p1 = (int) floor(gen_random_float(0, refNum));
@@ -713,31 +713,32 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
       //printf("corr_sample: %d %d %d\n",corr_sample[0],corr_sample[1],corr_sample[2]);
       maxCount = h_count;
       bestinlier = inlier;
-      printf("RANSAC iteration: %d/%d, inliers: %d\n", iter, numLoops, maxCount);
+      if (is_verbose)
+        printf("RANSAC iteration: %d/%d, inliers: %d\n", iter, conv_num_loops, maxCount);
       for (int i = 0; i < 12; i++) {
         rigidtransform[i] = h_RT[i];
       }
 
       // Update estimate of N, the number of trials to ensure we pick,
       // with probability p, a data set with no outliers.
-      // float p = 0.9999f;
-      // float frac_inliers =  (float) maxCount / (float) refCoord.size();
-      // printf("%f\n",frac_inliers);
-      // float pNoOutliers = 1 - frac_inliers * frac_inliers * frac_inliers;
-      // pNoOutliers = comp_max(std::numeric_limits<float>::epsilon(), pNoOutliers);  // Avoid division by - Inf
-      // pNoOutliers = comp_min(1 - std::numeric_limits<float>::epsilon(), pNoOutliers); // Avoid division by 0.
-      // conv_num_loops = (int) std::floor(std::log(1 - p) / std::log(pNoOutliers));
-      // conv_num_loops = comp_max(conv_num_loops, 100000); // at least try 20 times
+      float p = 0.9999f;
+      float frac_inliers =  (float) maxCount / (float) refCoord.size();
+      float pNoOutliers = 1 - frac_inliers * frac_inliers * frac_inliers;
+      pNoOutliers = comp_max(std::numeric_limits<float>::epsilon(), pNoOutliers);  // Avoid division by - Inf
+      pNoOutliers = comp_min(1 - std::numeric_limits<float>::epsilon(), pNoOutliers); // Avoid division by 0.
+      conv_num_loops = (int) std::floor(std::log(1 - p) / std::log(pNoOutliers));
+      conv_num_loops = comp_min(conv_num_loops, 100000); // at least try 10,000 times
     }
 
-    // if (iter > conv_num_loops)
-    //   break;
+    if (iter > conv_num_loops)
+      break;
 
   }
 
-  for (int jj = 0; jj < 3; jj++) {
-    printf("%f,%f,%f,%f\n", rigidtransform[0 + jj * 4], rigidtransform[1 + 4 * jj], rigidtransform[2 + 4 * jj], rigidtransform[3 + 4 * jj]);
-  }
+  if (is_verbose)
+    for (int jj = 0; jj < 3; jj++) {
+      printf("%f,%f,%f,%f\n", rigidtransform[0 + jj * 4], rigidtransform[1 + 4 * jj], rigidtransform[2 + 4 * jj], rigidtransform[3 + 4 * jj]);
+    }
 
   // reestimate RT based on inliners
   float * refCoord_inlier = new float[maxCount * 3];
@@ -749,16 +750,20 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
       movCoord_inlier[3 * i + j] = movCoord[tmp_idx][j];
     }
   }
-  printf("========================================================================================================================\n");
+  if (is_verbose) {
+    printf("========================================================================================================================\n");
+    printf("Total # of inliers: %d \n", maxCount);
+  }
 
-  printf("inliers: %d \n", maxCount);
   estimateRigidTransform(refCoord_inlier, movCoord_inlier, maxCount, rigidtransform);
   delete[] refCoord_inlier;
   delete[] movCoord_inlier;
 
-  printf("========================================================================================================================\n");
-  for (int jj = 0; jj < 3; jj++) {
-    printf("%f,%f,%f,%f\n", rigidtransform[0 + jj * 4], rigidtransform[1 + 4 * jj], rigidtransform[2 + 4 * jj], rigidtransform[3 + 4 * jj]);
+  if (is_verbose) {
+    printf("========================================================================================================================\n");
+    for (int jj = 0; jj < 3; jj++) {
+      printf("%f,%f,%f,%f\n", rigidtransform[0 + jj * 4], rigidtransform[1 + 4 * jj], rigidtransform[2 + 4 * jj], rigidtransform[3 + 4 * jj]);
+    }
   }
   return maxCount;
 }
