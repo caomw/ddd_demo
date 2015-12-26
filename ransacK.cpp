@@ -727,7 +727,7 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
       pNoOutliers = comp_max(std::numeric_limits<float>::epsilon(), pNoOutliers);  // Avoid division by - Inf
       pNoOutliers = comp_min(1 - std::numeric_limits<float>::epsilon(), pNoOutliers); // Avoid division by 0.
       conv_num_loops = (int) std::floor(std::log(1 - p) / std::log(pNoOutliers));
-      conv_num_loops = comp_max(conv_num_loops, 100000); // at least try 10,000 times
+      conv_num_loops = comp_min(conv_num_loops, 100000); // at least try 10,000 times
     }
 
     if (iter > conv_num_loops)
@@ -754,7 +754,7 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
     printf("========================================================================================================================\n");
     printf("Total # of inliers: %d \n", maxCount);
   }
-  
+
   estimateRigidTransform(refCoord_inlier, movCoord_inlier, maxCount, rigidtransform);
   delete[] refCoord_inlier;
   delete[] movCoord_inlier;
