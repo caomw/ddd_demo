@@ -185,7 +185,7 @@ public:
           toc();
         }
 
-        const bool debugDump = true;
+        const bool debugDump = false;
         if (debugDump) {
             ///////////////////////////////////////////////////////////////////
             // DEBUG: save point aligned point clouds

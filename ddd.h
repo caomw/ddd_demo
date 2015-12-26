@@ -288,6 +288,92 @@ std::vector<std::vector<int>> detect_keypoints_filtered(float* scene_tsdf, int x
 }
 
 ///////////////////////////////////////////////////////////////////////
+void ddd_align_feature_cloud(std::vector<std::vector<float>> world_keypoints1, std::vector<std::vector<float>> feat1,
+                             std::vector<std::vector<float>> world_keypoints2, std::vector<std::vector<float>> feat2,
+                             float voxelSize, float k_match_score_thresh, float ransac_k, float max_ransac_iter, float ransac_thresh, float* Rt) {
+
+    // Compare feature vectors and compute score matrix
+    tic();
+    std::vector<std::vector<float>> score_matrix1;
+    score_matrix1 = ddd_compare_feat(feat1, feat2, ddd_verbose);
+    std::cout << "Comparing keypoint features from both TSDF volumes. ";
+    toc();
+
+    // For each keypoint from first set, find indices of all keypoints
+    // in second set with score > k_match_score_thresh
+    std::vector<std::vector<int>> match_rank1;
+    for (int i = 0; i < feat1.size(); i++) {
+        // Sort score vector in descending fashion
+        std::vector<float> tmp_score_vect = score_matrix1[i];
+        float* tmp_score_vect_arr = &tmp_score_vect[0];
+        int* tmp_score_idx = new int[tmp_score_vect.size()];
+        std::iota(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), 0);
+        std::sort(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), std::bind(sort_arr_desc_compare, std::placeholders::_1, std::placeholders::_2, tmp_score_vect_arr));
+        std::vector<int> tmp_score_rank;
+        for (int j = 0; j < feat2.size(); j++)
+            if (tmp_score_vect_arr[tmp_score_idx[j]] > k_match_score_thresh)
+                tmp_score_rank.push_back(tmp_score_idx[j]);
+        // std::cout << tmp_score_rank.size() << std::endl;
+        match_rank1.push_back(tmp_score_rank);
+    }
+
+    // Inversely compare feature vectors and compute score matrix
+    tic();
+    std::vector<std::vector<float>> score_matrix2;
+    score_matrix2 = ddd_compare_feat(feat2, feat1, ddd_verbose);
+    std::cout << "Comparing *flipped* keypoint features from both TSDF volumes. ";
+    toc();
+
+    // For each keypoint from second set, find indices of all keypoints
+    // in first set with score > k_match_score_thresh
+    std::vector<std::vector<int>> match_rank2;
+    for (int i = 0; i < feat2.size(); i++) {
+        // Sort score vector in descending fashion
+        std::vector<float> tmp_score_vect = score_matrix2[i];
+        float* tmp_score_vect_arr = &tmp_score_vect[0];
+        int* tmp_score_idx = new int[tmp_score_vect.size()];
+        std::iota(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), 0);
+        std::sort(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), std::bind(sort_arr_desc_compare, std::placeholders::_1, std::placeholders::_2, tmp_score_vect_arr));
+        std::vector<int> tmp_score_rank;
+        for (int j = 0; j < feat1.size(); j++)
+            if (tmp_score_vect_arr[tmp_score_idx[j]] > k_match_score_thresh)
+                tmp_score_rank.push_back(tmp_score_idx[j]);
+        // std::cout << tmp_score_rank.size() << std::endl;
+        match_rank2.push_back(tmp_score_rank);
+    }
+
+    // Finalize match matrix (indices) unofficial reflexive property
+    // A pair of points (with feature vectors f1 and f2) match iff
+    // ddd(f1,f2) > threshold && ddd(f2,f1) > threshold
+    std::vector<std::vector<int>> match_idx;
+    for (int i = 0; i < feat1.size(); i++) {
+        std::vector<int> tmp_matches;
+        for (int j = 0; j < match_rank1[i].size(); j++) {
+            int tmp_match_idx = match_rank1[i][j];
+            if (std::find(match_rank2[tmp_match_idx].begin(), match_rank2[tmp_match_idx].end(), i) != match_rank2[tmp_match_idx].end())
+                tmp_matches.push_back(tmp_match_idx);
+        }
+        match_idx.push_back(tmp_matches);
+    }
+
+    // DEBUG
+    if (ddd_verbose) {
+        for (int i = 0; i < feat1.size(); i++) {
+            std::cout << i << " | ";
+            for (int j = 0; j < match_idx[i].size(); j++)
+                std::cout << match_idx[i][j] << " ";
+            std::cout << std::endl;
+        }
+    }
+
+    // Compute Rt transform from second to first point cloud (k-ransac)
+    tic();
+    int num_inliers = ransacfitRt(world_keypoints1, world_keypoints2, match_idx, ransac_k, max_ransac_iter, ransac_thresh, Rt, ddd_verbose);
+    std::cout << "Estimating rigid transform (via RANSAC-k). ";
+    toc();
+}
+
+///////////////////////////////////////////////////////////////////////
 void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float world_origin1_x, float world_origin1_y, float world_origin1_z,
                 float* scene_tsdf2, int x_dim2, int y_dim2, int z_dim2, float world_origin2_x, float world_origin2_y, float world_origin2_z, 
                 float voxelSize, float k_match_score_thresh, float ransac_k, float max_ransac_iter, float ransac_thresh, float* Rt) {
@@ -362,104 +448,5 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
     world_keypoints2.push_back(tmp_keypoint);
   }
 
-  //-------------------------------------------------------------//
- 
-  // Compare feature vectors and compute score matrix
-  tic();
-  std::vector<std::vector<float>> score_matrix1;  
-  score_matrix1 = ddd_compare_feat(feat1, feat2, ddd_verbose);
-  std::cout << "Comparing keypoint features from both TSDF volumes. ";
-  toc();
-
-  // For each keypoint from first set, find indices of all keypoints
-  // in second set with score > k_match_score_thresh
-  std::vector<std::vector<int>> match_rank1;
-  for (int i = 0; i < feat1.size(); i++) {
-    // Sort score vector in descending fashion
-    std::vector<float> tmp_score_vect = score_matrix1[i];
-    float* tmp_score_vect_arr = &tmp_score_vect[0];
-    int* tmp_score_idx = new int[tmp_score_vect.size()];
-    std::iota(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), 0);
-    std::sort(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), std::bind(sort_arr_desc_compare, std::placeholders::_1, std::placeholders::_2, tmp_score_vect_arr));
-    std::vector<int> tmp_score_rank;
-    for (int j = 0; j < feat2.size(); j++)
-      if (tmp_score_vect_arr[tmp_score_idx[j]] > k_match_score_thresh)
-        tmp_score_rank.push_back(tmp_score_idx[j]);
-    // std::cout << tmp_score_rank.size() << std::endl;
-    match_rank1.push_back(tmp_score_rank);
-  }
-
-  // Inversely compare feature vectors and compute score matrix
-  tic();
-  std::vector<std::vector<float>> score_matrix2;  
-  score_matrix2 = ddd_compare_feat(feat2, feat1, ddd_verbose);
-  std::cout << "Comparing *flipped* keypoint features from both TSDF volumes. ";
-  toc();
-
-  // For each keypoint from second set, find indices of all keypoints
-  // in first set with score > k_match_score_thresh
-  std::vector<std::vector<int>> match_rank2;
-  for (int i = 0; i < feat2.size(); i++) {
-    // Sort score vector in descending fashion
-    std::vector<float> tmp_score_vect = score_matrix2[i];
-    float* tmp_score_vect_arr = &tmp_score_vect[0];
-    int* tmp_score_idx = new int[tmp_score_vect.size()];
-    std::iota(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), 0);
-    std::sort(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), std::bind(sort_arr_desc_compare, std::placeholders::_1, std::placeholders::_2, tmp_score_vect_arr));
-    std::vector<int> tmp_score_rank;
-    for (int j = 0; j < feat1.size(); j++)
-      if (tmp_score_vect_arr[tmp_score_idx[j]] > k_match_score_thresh)
-        tmp_score_rank.push_back(tmp_score_idx[j]);
-    // std::cout << tmp_score_rank.size() << std::endl;
-    match_rank2.push_back(tmp_score_rank);
-  }
-
-  // Finalize match matrix (indices) unofficial reflexive property
-  // A pair of points (with feature vectors f1 and f2) match iff
-  // ddd(f1,f2) > threshold && ddd(f2,f1) > threshold
-  std::vector<std::vector<int>> match_idx;
-  for (int i = 0; i < feat1.size(); i++) {
-    std::vector<int> tmp_matches;
-    for (int j = 0; j < match_rank1[i].size(); j++) {
-      int tmp_match_idx = match_rank1[i][j];
-      if (std::find(match_rank2[tmp_match_idx].begin(), match_rank2[tmp_match_idx].end(), i) != match_rank2[tmp_match_idx].end())
-        tmp_matches.push_back(tmp_match_idx);
-    }
-    match_idx.push_back(tmp_matches);
-  }
-
-  // DEBUG
-  if (ddd_verbose) {
-    for (int i = 0; i < feat1.size(); i++) {
-    std::cout << i << " | ";
-    for (int j = 0; j < match_idx[i].size(); j++)
-        std::cout << match_idx[i][j] << " ";
-    std::cout << std::endl;
-    }
-  }
-
-  // Compute Rt transform from second to first point cloud (k-ransac)
-  tic();
-  int num_inliers = ransacfitRt(world_keypoints1, world_keypoints2, match_idx, ransac_k, max_ransac_iter, ransac_thresh, Rt, ddd_verbose);
-  std::cout << "Estimating rigid transform (via RANSAC-k). ";
-  toc();
-
-  // // DEBUG: Save stuff for MATLAB RANSAC
-  // FILE *fp = fopen("TMPkeypoints1.txt", "w");
-  // for (int i = 0; i < world_keypoints1.size(); i++)
-  //   fprintf(fp, "%f %f %f\n", world_keypoints1[i][0], world_keypoints1[i][1], world_keypoints1[i][2]);
-  // fclose(fp);
-  // fp = fopen("TMPkeypoints2.txt", "w");
-  // for (int i = 0; i < world_keypoints2.size(); i++)
-  //   fprintf(fp, "%f %f %f\n", world_keypoints2[i][0], world_keypoints2[i][1], world_keypoints2[i][2]);
-  // fclose(fp);
-  // fp = fopen("TMPmatches.txt", "w");
-  // for (int i = 0; i < match_idx.size(); i++) {
-  //   fprintf(fp, "%d ", i + 1);
-  //   for (int j = 0; j < match_idx[i].size(); j++)
-  //     fprintf(fp, "%d ", match_idx[i][j] + 1);
-  //   fprintf(fp, "\n");
-  // }
-  // fclose(fp);
-
+  ddd_align_feature_cloud(world_keypoints1, feat1, world_keypoints2, feat2, voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_thresh, Rt);
 }
