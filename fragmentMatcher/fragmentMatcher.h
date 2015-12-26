@@ -22,15 +22,15 @@ public:
             file << "transform" << std::endl;
             file << transformBToA;
             
-            file << "#matches" << endl;
+            file << "#matches" << std::endl;
             for (const auto &match : matches)
             {
                 file << match.posA << " " << match.posB << " " << match.alignmentError << std::endl;
             }
-            file << "#keypointsA" << endl;
+            file << "#keypointsA" << std::endl;
             for (vec3f v : keypointsA)
                 file << v << std::endl;
-            file << "#keypointsB" << endl;
+            file << "#keypointsB" << std::endl;
             for (vec3f v : keypointsB)
                 file << v << std::endl;
         }
@@ -121,7 +121,7 @@ public:
         {
             const vec3f bPtInA = result.transformBToA * bPt;
             const auto closestPt = acceleratorA.findClosestPoint(bPtInA);
-            const float dist = vec3f::dist(bPtInA, closestPt);
+            const float dist = vec3f::dist(bPtInA, closestPt.first);
             if (dist <= maxKeypointMatchDist)
             {
                 KeypointMatch match;
