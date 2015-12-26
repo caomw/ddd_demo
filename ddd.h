@@ -291,6 +291,10 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
                 float* scene_tsdf2, int x_dim2, int y_dim2, int z_dim2, float world_origin2_x, float world_origin2_y, float world_origin2_z, 
                 float voxelSize, float k_match_score_thresh, float ransac_k, float max_ransac_iter, float ransac_thresh, float* Rt) {
 
+  // for (i = 0; i < x_dim1*y_dim1*z_dim1; i++) {
+  //   std::cout << scene_tsdf1[i] << std::endl;
+  // }
+
   // Find keypoints in first TUDF
   std::vector<std::vector<int>> keypoints1 = detect_keypoints(scene_tsdf1, x_dim1, y_dim1, z_dim1, 0.2f, 1.0f, 5, 100.0f);
 
@@ -391,24 +395,6 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
     match_rank2.push_back(tmp_score_rank);
   }
 
-  for (int i = 0; i < feat1.size(); i++) {
-    std::cout << i << " | ";
-    for (int j = 0; j < match_rank1[i].size(); j++)
-        std::cout << match_rank1[i][j] << " ";
-    std::cout << std::endl;
-  } 
-
-  std::cout << std::endl;
-  std::cout << std::endl;
-  std::cout << std::endl;
-
-  for (int i = 0; i < feat2.size(); i++) {
-    std::cout << i << " | ";
-    for (int j = 0; j < match_rank2[i].size(); j++)
-        std::cout << match_rank2[i][j] << " ";
-    std::cout << std::endl;
-  } 
-
   // Finalize match matrix (indices) unofficial reflexive property
   // A pair of points (with feature vectors f1 and f2) match iff
   // ddd(f1,f2) > threshold && ddd(f2,f1) > threshold
@@ -440,14 +426,23 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
   std::cout << "Estimating rigid transform..." << std::endl;
   ransacfitRt(world_keypoints1, world_keypoints2, match_idx, ransac_k, max_ransac_iter, ransac_thresh, Rt);
 
-  // world_keypoints1
-  // world_keypoints2
-  // match_idx
-  // ransac_k
-  // max_ransac_iter
-  // ransac_thresh
-
-
+  // DEBUG: Save stuff for MATLAB RANSAC
+  FILE *fp = fopen("TMPkeypoints1.txt", "w");
+  for (int i = 0; i < world_keypoints1.size(); i++)
+    fprintf(fp, "%f %f %f\n", world_keypoints1[i][0], world_keypoints1[i][1], world_keypoints1[i][2]);
+  fclose(fp);
+  fp = fopen("TMPkeypoints2.txt", "w");
+  for (int i = 0; i < world_keypoints2.size(); i++)
+    fprintf(fp, "%f %f %f\n", world_keypoints2[i][0], world_keypoints2[i][1], world_keypoints2[i][2]);
+  fclose(fp);
+  fp = fopen("TMPmatches.txt", "w");
+  for (int i = 0; i < match_idx.size(); i++) {
+    fprintf(fp, "%d ", i + 1);
+    for (int j = 0; j < match_idx[i].size(); j++)
+      fprintf(fp, "%d ", match_idx[i][j] + 1);
+    fprintf(fp, "\n");
+  }
+  fclose(fp);
 
 
 

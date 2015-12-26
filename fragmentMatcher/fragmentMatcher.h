@@ -46,6 +46,11 @@ public:
       return dist(mt);
     }
 
+    static void sys_command(std::string str) {
+      if (system(str.c_str()))
+        return;
+    }
+
     static Result match(const std::string &pointCloudFileA, const std::string &pointCloudFileB, int cloudIndA, int cloudIndB, float voxelSize, float truncationRadius, float maxKeypointMatchDist)
     {
         std::cout << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
@@ -59,8 +64,8 @@ public:
         ///////////////////////////////////////////////////////////////////
 
         const float k_match_score_thresh = 0.5f;
-        const float ransac_k = 3; // RANSAC over top-k > k_match_score_thresh
-        const float max_ransac_iter = 100000;
+        const float ransac_k = 1; // RANSAC over top-k > k_match_score_thresh
+        const float max_ransac_iter = 1000000;
         const float ransac_inlier_thresh = 0.05f;
         
         float* Rt = new float[12]; // Contains rigid transform matrix
@@ -104,9 +109,8 @@ public:
 
         std::cout << "Keypoint matches found: " << result.matches.size() << std::endl;
 
-        const bool debugDump = false;
-        if (debugDump)
-        {
+        const bool debugDump = true;
+        if (debugDump) {
             ///////////////////////////////////////////////////////////////////
             // DEBUG: save point aligned point clouds
 
@@ -131,20 +135,67 @@ public:
                 color1[i] = gen_random_float(0.0, 1.0);
             for (int i = 0; i < cloud1.m_points.size(); i++)
                 cloud1.m_colors[i] = color1;
-
             ml::vec4f color2;
             for (int i = 0; i < 3; i++)
                 color2[i] = gen_random_float(0.0, 1.0);
             for (int i = 0; i < cloud2.m_points.size(); i++)
                 cloud2.m_colors[i] = color2;
 
+            // Save point clouds to file
             std::string pcfile1 = "results/debug" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndA) + ".ply";
             PointCloudIOf::saveToFile(pcfile1, cloud1);
-
             std::string pcfile2 = "results/debug" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndB) + ".ply";
             PointCloudIOf::saveToFile(pcfile2, cloud2);
         }
 
+        ///////////////////////////////////////////////////////////////////
+
+        // DEBUG: Use MATLAB RANSAC
+        sys_command("cd matlab; matlab -nojvm < main.m; cd ..");
+        float *tmp_matlab_rt = new float[12];
+        int iret;
+        FILE *fp = fopen("TMPrt.txt", "r");
+        for (int i = 0; i < 12; i++) {
+          iret = fscanf(fp, "%f", &tmp_matlab_rt[i]);
+          std::cout << tmp_matlab_rt[i] << std::endl;
+        }
+        fclose(fp);
+
+        if (debugDump) {
+            // DEBUG: Use MATLAB RANSAC
+            auto cloud1 = PointCloudIOf::loadFromFile(pointCloudFileA);
+            auto cloud2 = PointCloudIOf::loadFromFile(pointCloudFileB);
+
+            // Rotate B points into A using Rt
+            for (int i = 0; i < cloud2.m_points.size(); i++) {
+                vec3f tmp_point;
+                tmp_point.x = tmp_matlab_rt[0] * cloud2.m_points[i].x + tmp_matlab_rt[1] * cloud2.m_points[i].y + tmp_matlab_rt[2] * cloud2.m_points[i].z;
+                tmp_point.y = tmp_matlab_rt[4] * cloud2.m_points[i].x + tmp_matlab_rt[5] * cloud2.m_points[i].y + tmp_matlab_rt[6] * cloud2.m_points[i].z;
+                tmp_point.z = tmp_matlab_rt[8] * cloud2.m_points[i].x + tmp_matlab_rt[9] * cloud2.m_points[i].y + tmp_matlab_rt[10] * cloud2.m_points[i].z;
+                tmp_point.x = tmp_point.x + tmp_matlab_rt[3];
+                tmp_point.y = tmp_point.y + tmp_matlab_rt[7];
+                tmp_point.z = tmp_point.z + tmp_matlab_rt[11];
+                cloud2.m_points[i] = tmp_point;
+            }
+
+            // Make point clouds colorful
+            ml::vec4f color1;
+            for (int i = 0; i < 3; i++)
+                color1[i] = gen_random_float(0.0, 1.0);
+            for (int i = 0; i < cloud1.m_points.size(); i++)
+                cloud1.m_colors[i] = color1;
+            ml::vec4f color2;
+            for (int i = 0; i < 3; i++)
+                color2[i] = gen_random_float(0.0, 1.0);
+            for (int i = 0; i < cloud2.m_points.size(); i++)
+                cloud2.m_colors[i] = color2;
+
+            // Save point clouds to file
+            pcfile1 = "results/debug_matlab_" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndA) + ".ply";
+            PointCloudIOf::saveToFile(pcfile1, cloud1);
+            pcfile2 = "results/debug_matlab_" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndB) + ".ply";
+            PointCloudIOf::saveToFile(pcfile2, cloud2);
+        }
 
 
         return result;
