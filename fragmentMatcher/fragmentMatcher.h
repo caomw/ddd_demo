@@ -16,17 +16,21 @@ public:
         void saveASCII(const std::string &filename) const
         {
             std::ofstream file(filename);
+            file << "matchCount " << matches.size() << std::endl;
+            file << "keypointsACount " << keypointsA.size() << std::endl;
+            file << "keypointsBCount " << keypointsB.size() << std::endl;
             file << "transform" << std::endl;
-            file << transformBToA << std::endl;
-            file << "matches: " << matches.size() << std::endl;
+            file << transformBToA;
+            
+            file << "#matches" << endl;
             for (const auto &match : matches)
             {
                 file << match.posA << " " << match.posB << " " << match.alignmentError << std::endl;
             }
-            file << "keypoints-A-count: " << keypointsA.size() << std::endl;
+            file << "#keypointsA" << endl;
             for (vec3f v : keypointsA)
                 file << v << std::endl;
-            file << "keypoints-B-count: " << keypointsB.size() << std::endl;
+            file << "#keypointsB" << endl;
             for (vec3f v : keypointsB)
                 file << v << std::endl;
         }
@@ -117,7 +121,7 @@ public:
         {
             const vec3f bPtInA = result.transformBToA * bPt;
             const auto closestPt = acceleratorA.findClosestPoint(bPtInA);
-            const float dist = closestPt.second;
+            const float dist = vec3f::dist(bPtInA, closestPt);
             if (dist <= maxKeypointMatchDist)
             {
                 KeypointMatch match;
