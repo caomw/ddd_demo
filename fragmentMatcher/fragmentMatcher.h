@@ -137,7 +137,8 @@ public:
         float* final_Rt = new float[16];
         final_Rt = Rt;
 
-        bool use_matlab_icp = true;
+        // DISABLE ICP FOR NOW (too slow)
+        bool use_matlab_icp = false;
         if (use_matlab_icp) {
           // Save point clouds to files for matlab to read
           auto cloud1 = PointCloudIOf::loadFromFile(pointCloudFileA);
