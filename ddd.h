@@ -373,80 +373,52 @@ void ddd_align_feature_cloud(std::vector<std::vector<float>> world_keypoints1, s
     toc();
 }
 
+void ddd_compute_feature_cloud(float* scene_tsdf, int x_dim, int y_dim, int z_dim, float world_origin_x, float world_origin_y, float world_origin_z,
+    float voxelSize,
+    std::vector<std::vector<float>> &world_keypoints_out, std::vector<std::vector<float>> &feat_out) {
+    
+    // Find keypoints in TUDF
+    tic();
+    std::vector<std::vector<int>> keypoints = detect_keypoints(scene_tsdf, x_dim, y_dim, z_dim, 0.2f, 1.0f, 5, 100.0f);
+    std::cout << "Detecting harris keypoints in TSDF volume. ";
+    toc();
+
+    // Filter out keypoints too close to the bounding box of the voxel volume
+    int local_patch_radius = 15;
+    std::vector<std::vector<int>> valid_keypoints;
+    for (int i = 0; i < keypoints.size(); i++)
+        if (keypoints[i][0] - local_patch_radius >= 0 && keypoints[i][0] + local_patch_radius < x_dim &&
+            keypoints[i][1] - local_patch_radius >= 0 && keypoints[i][1] + local_patch_radius < y_dim &&
+            keypoints[i][2] - local_patch_radius >= 0 && keypoints[i][2] + local_patch_radius < z_dim)
+            valid_keypoints.push_back(keypoints[i]);
+
+    // Compute ddd features from keypoints
+    tic();
+    feat_out = ddd_get_keypoint_feat(scene_tsdf, x_dim, y_dim, z_dim, valid_keypoints, local_patch_radius, ddd_verbose);
+    std::cout << "Computing features for keypoints from first TSDF volume. ";
+    toc();
+
+    // Convert valid keypoints from grid to world coordinates
+    std::vector<std::vector<float>> world_keypoints;
+    for (int i = 0; i < valid_keypoints.size(); i++) {
+        std::vector<float> tmp_keypoint;
+        tmp_keypoint.push_back((float)valid_keypoints[i][0] * voxelSize + world_origin_x);
+        tmp_keypoint.push_back((float)valid_keypoints[i][1] * voxelSize + world_origin_y);
+        tmp_keypoint.push_back((float)valid_keypoints[i][2] * voxelSize + world_origin_z);
+        world_keypoints_out.push_back(tmp_keypoint);
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////
 void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float world_origin1_x, float world_origin1_y, float world_origin1_z,
                 float* scene_tsdf2, int x_dim2, int y_dim2, int z_dim2, float world_origin2_x, float world_origin2_y, float world_origin2_z, 
                 float voxelSize, float k_match_score_thresh, float ransac_k, float max_ransac_iter, float ransac_thresh, float* Rt) {
 
-  // for (i = 0; i < x_dim1*y_dim1*z_dim1; i++) {
-  //   std::cout << scene_tsdf1[i] << std::endl;
-  // }
+  std::vector<std::vector<float>> world_keypoints1, world_keypoints2;
+  std::vector<std::vector<float>> feat1, feat2;
 
-  // Find keypoints in first TUDF
-  tic();
-  std::vector<std::vector<int>> keypoints1 = detect_keypoints(scene_tsdf1, x_dim1, y_dim1, z_dim1, 0.2f, 1.0f, 5, 100.0f);
-  std::cout << "Detecting harris keypoints in first TSDF volume. ";
-  toc();
-
-  // Filter out keypoints too close to the bounding box of the voxel volume
-  int local_patch_radius = 15;
-  std::vector<std::vector<int>> valid_keypoints1;
-  for (int i = 0; i < keypoints1.size(); i++)
-    if (keypoints1[i][0] - local_patch_radius >= 0 && keypoints1[i][0] + local_patch_radius < x_dim1 &&
-        keypoints1[i][1] - local_patch_radius >= 0 && keypoints1[i][1] + local_patch_radius < y_dim1 &&
-        keypoints1[i][2] - local_patch_radius >= 0 && keypoints1[i][2] + local_patch_radius < z_dim1)
-      valid_keypoints1.push_back(keypoints1[i]);
-
-  // Compute ddd features from keypoints
-  tic();
-  std::vector<std::vector<float>> feat1;  
-  feat1 = ddd_get_keypoint_feat(scene_tsdf1, x_dim1, y_dim1, z_dim1, valid_keypoints1, local_patch_radius, ddd_verbose);
-  std::cout << "Computing features for keypoints from first TSDF volume. ";
-  toc();
-
-  // Convert valid keypoints from grid to world coordinates
-  std::vector<std::vector<float>> world_keypoints1;
-  for (int i = 0; i < valid_keypoints1.size(); i++) {
-    std::vector<float> tmp_keypoint;
-    tmp_keypoint.push_back((float) valid_keypoints1[i][0] * voxelSize + world_origin1_x);
-    tmp_keypoint.push_back((float) valid_keypoints1[i][1] * voxelSize + world_origin1_y);
-    tmp_keypoint.push_back((float) valid_keypoints1[i][2] * voxelSize + world_origin1_z);
-    world_keypoints1.push_back(tmp_keypoint);
-  }
-
-  //-------------------------------------------------------------//
-
-  // Find keypoints in second TUDF
-  tic();
-  std::vector<std::vector<int>> keypoints2 = detect_keypoints(scene_tsdf2, x_dim2, y_dim2, z_dim2, 0.2f, 1.0f, 5, 100.0f);
-  std::cout << "Detecting harris keypoints in second TSDF volume. ";
-  toc();
-
-  // Filter out keypoints too close to the bounding box of the voxel volume
-  local_patch_radius = 15;
-  std::vector<std::vector<int>> valid_keypoints2;
-  for (int i = 0; i < keypoints2.size(); i++)
-    if (keypoints2[i][0] - local_patch_radius >= 0 && keypoints2[i][0] + local_patch_radius < x_dim2 &&
-        keypoints2[i][1] - local_patch_radius >= 0 && keypoints2[i][1] + local_patch_radius < y_dim2 &&
-        keypoints2[i][2] - local_patch_radius >= 0 && keypoints2[i][2] + local_patch_radius < z_dim2)
-      valid_keypoints2.push_back(keypoints2[i]);
-
-  // Compute ddd features from keypoints
-  tic();
-  std::vector<std::vector<float>> feat2;  
-  feat2 = ddd_get_keypoint_feat(scene_tsdf2, x_dim2, y_dim2, z_dim2, valid_keypoints2, local_patch_radius, ddd_verbose);
-  std::cout << "Computing features for keypoints from second TSDF volume. ";
-  toc();
-
-  // Convert valid keypoints from grid to world coordinates
-  std::vector<std::vector<float>> world_keypoints2;
-  for (int i = 0; i < valid_keypoints2.size(); i++) {
-    std::vector<float> tmp_keypoint;
-    tmp_keypoint.push_back((float) valid_keypoints2[i][0] * voxelSize + world_origin2_x);
-    tmp_keypoint.push_back((float) valid_keypoints2[i][1] * voxelSize + world_origin2_y);
-    tmp_keypoint.push_back((float) valid_keypoints2[i][2] * voxelSize + world_origin2_z);
-    world_keypoints2.push_back(tmp_keypoint);
-  }
+  ddd_compute_feature_cloud(scene_tsdf1, x_dim1, y_dim1, z_dim1, world_origin1_x, world_origin1_y, world_origin1_z, voxelSize, world_keypoints1, feat1);
+  ddd_compute_feature_cloud(scene_tsdf2, x_dim2, y_dim2, z_dim2, world_origin2_x, world_origin2_y, world_origin2_z, voxelSize, world_keypoints2, feat2);
 
   ddd_align_feature_cloud(world_keypoints1, feat1, world_keypoints2, feat2, voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_thresh, Rt);
 }
