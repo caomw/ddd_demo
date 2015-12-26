@@ -688,7 +688,8 @@ void ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::ve
         rigidtransform[i] = h_RT[i];
       }
     }
-    printf("RANSAC iteration: %d/%d, maxCount: %d\n", iter, numLoops, maxCount);
+    if (iter % 10000 == 0)
+        printf("RANSAC iteration: %d/%d, maxCount: %d\n", iter, numLoops, maxCount);
   }
 
   for (int jj = 0; jj < 3; jj++) {
