@@ -23,10 +23,10 @@ public:
             {
                 file << match.posA << " " << match.posB << " " << match.alignmentError << std::endl;
             }
-            file << << "keypoints-A-count: " << keypointsA.size() << std::endl;
+            file << "keypoints-A-count: " << keypointsA.size() << std::endl;
             for (vec3f v : keypointsA)
                 file << v << std::endl;
-            file << << "keypoints-B-count: " << keypointsB.size() << std::endl;
+            file << "keypoints-B-count: " << keypointsB.size() << std::endl;
             for (vec3f v : keypointsB)
                 file << v << std::endl;
         }
