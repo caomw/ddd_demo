@@ -77,10 +77,21 @@ public:
         return;
     }
 
+    static vec3f makeVec3(const std::vector<float> &v)
+    {
+        return vec3f(v[0], v[1], v[2]);
+    }
+
     static Result match(const std::string &pointCloudFileA, const std::string &pointCloudFileB, int cloudIndA, int cloudIndB, float voxelSize, float truncationRadius, float maxKeypointMatchDist)
     {
         std::cout << std::endl << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
-        tic();
+        
+        const float k_match_score_thresh = 0.5f;
+        const float ransac_k = 3; // RANSAC over top-k > k_match_score_thresh
+        const float max_ransac_iter = 500000;
+        const float ransac_inlier_thresh = 0.04f;
+
+        /*tic();
         FlatTSDF tsdfA = plyToTSDF(pointCloudFileA, voxelSize, truncationRadius);
         FlatTSDF tsdfB = plyToTSDF(pointCloudFileB, voxelSize, truncationRadius);
         std::cout << "Loading point clouds as TSDFs. ";
@@ -90,24 +101,33 @@ public:
 
         ///////////////////////////////////////////////////////////////////
 
-        const float k_match_score_thresh = 0.5f;
-        const float ransac_k = 3; // RANSAC over top-k > k_match_score_thresh
-        const float max_ransac_iter = 500000;
-        const float ransac_inlier_thresh = 0.04f;
-        
         float* Rt = new float[16]; // Contains rigid transform matrix
         Rt[12] = 0; Rt[13] = 0; Rt[14] = 0; Rt[15] = 1;
         align2tsdf(
             tsdfA.data.data(), tsdfA.dim.x, tsdfA.dim.y, tsdfA.dim.z, tsdfA.origin.x, tsdfA.origin.y, tsdfA.origin.z,
             tsdfB.data.data(), tsdfB.dim.x, tsdfB.dim.y, tsdfB.dim.z, tsdfB.origin.x, tsdfB.origin.y, tsdfB.origin.z,
+            voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_inlier_thresh, Rt);*/
+
+        FeatureCloud cloudA, cloudB;
+
+        tic();
+        plyToFeatureCloud(pointCloudFileA, voxelSize, truncationRadius, cloudA);
+        plyToFeatureCloud(pointCloudFileB, voxelSize, truncationRadius, cloudB);
+        toc();
+        std::cout << "feature clouds loaded, aligning... " << std::endl;
+        float* Rt = new float[16]; // Contains rigid transform matrix
+        Rt[12] = 0; Rt[13] = 0; Rt[14] = 0; Rt[15] = 1;
+        ddd_align_feature_cloud(cloudA.keypoints, cloudA.features, cloudB.keypoints, cloudB.features,
             voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_inlier_thresh, Rt);
 
         ///////////////////////////////////////////////////////////////////
 
         // TODO: this is redundant with align2tsdf
         Result result;
-        result.keypointsA = tsdfA.makeKeypoints();
-        result.keypointsB = tsdfB.makeKeypoints();
+        for (auto &x : cloudA.keypoints)
+            result.keypointsA.push_back(makeVec3(x));
+        for (auto &x : cloudB.keypoints)
+            result.keypointsB.push_back(makeVec3(x));
 
         result.transformBToA = mat4f::identity();
         for (int i = 0; i < 4; i++)
@@ -279,6 +299,12 @@ public:
 
 private:
     
+    struct FeatureCloud
+    {
+        std::vector<std::vector<float>> keypoints;
+        std::vector<std::vector<float>> features;
+    };
+
     struct FlatTSDF
     {
         std::vector<vec3f> makeKeypoints()
@@ -295,10 +321,37 @@ private:
         std::vector<float> data;
     };
 
+    static void plyToFeatureCloud(const std::string &filename, float voxelSize, float truncationRadius, FeatureCloud &cloudOut)
+    {
+        const std::string cacheDir = "featCache/";
+
+        sys_command("mkdir " + cacheDir);
+
+        const std::string filenameBase = util::remove(util::split(filename, '/').back(), ".ply");
+        const std::string keypointsFilename = cacheDir + filenameBase + "_keypoints.dat";
+        const std::string featuresFilename = cacheDir + filenameBase + "_features.dat";
+
+        if (!util::fileExists(keypointsFilename) || !util::fileExists(featuresFilename))
+        {
+            std::cout << "creating feature cloud for " << filename << std::endl;
+            FlatTSDF tsdf = plyToTSDF(filename, voxelSize, truncationRadius);
+
+            ddd_compute_feature_cloud(tsdf.data.data(), tsdf.dim.x, tsdf.dim.y, tsdf.dim.z, tsdf.origin.x, tsdf.origin.y, tsdf.origin.z, voxelSize,
+                cloudOut.keypoints, cloudOut.features);
+
+            saveGrid(keypointsFilename, cloudOut.keypoints);
+            saveGrid(featuresFilename, cloudOut.features);
+        }
+
+        std::cout << "loading cached feature cloud for " << filename << std::endl;
+        loadGrid(keypointsFilename, cloudOut.keypoints);
+        loadGrid(featuresFilename, cloudOut.features);
+    }
+
     static FlatTSDF plyToTSDF(const std::string &filename, float voxelSize, float truncationRadius)
     {
         auto cloud = PointCloudIOf::loadFromFile(filename);
-        std::cout << "Cloud size: " << cloud.m_points.size() << ", p5: " << cloud.m_points[5] << std::endl;
+        //std::cout << "Cloud size: " << cloud.m_points.size() << ", p5: " << cloud.m_points[5] << std::endl;
         pc2tsdf::TSDF tsdf;
         pc2tsdf::makeTSDF(cloud, voxelSize, truncationRadius, tsdf);
         
@@ -317,5 +370,42 @@ private:
                 for (int x = 0; x < dim.x; x++)
                     result.data[z * dim.y * dim.x + y * dim.x + x] = tsdf.data(x, y, z) / truncationRadius;
         return result;
+    }
+
+    static void saveGrid(const std::string &filename, std::vector<std::vector<float>> &grid)
+    {
+        const size_t dimX = grid.size(), dimY = grid[0].size();
+        Grid2f g(dimX, dimY);
+        for (int x = 0; x < dimX; x++)
+            for (int y = 0; y < dimY; y++)
+                g(x, y) = grid[x][y];
+
+        FILE *file = util::checkedFOpen(filename.c_str(), "wb");
+        util::checkedFWrite(&dimX, sizeof(size_t), 1, file);
+        util::checkedFWrite(&dimY, sizeof(size_t), 1, file);
+        util::checkedFWrite(g.getData(), sizeof(float), dimX * dimY, file);
+        fclose(file);
+    }
+
+    static void loadGrid(const std::string &filename, std::vector<std::vector<float>> &grid)
+    {
+        size_t dimX, dimY;
+        
+        FILE *file = util::checkedFOpen(filename.c_str(), "rb");
+        util::checkedFRead(&dimX, sizeof(size_t), 1, file);
+        util::checkedFRead(&dimY, sizeof(size_t), 1, file);
+
+        Grid2f g(dimX, dimY);
+        util::checkedFRead(g.getData(), sizeof(float), dimX * dimY, file);
+        fclose(file);
+
+        grid.resize(dimX);
+        for (auto &x : grid)
+            x.resize(dimY);
+
+        for (int x = 0; x < dimX; x++)
+            for (int y = 0; y < dimY; y++)
+                grid[x][y] = g(x, y);
+
     }
 };

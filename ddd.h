@@ -155,7 +155,7 @@ std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, 
 }
 
 ///////////////////////////////////////////////////////////////////////
-std::vector<std::vector<float>> ddd_compare_feat(std::vector<std::vector<float>> &feat1, std::vector<std::vector<float>> &feat2, bool is_verbose) {
+std::vector<std::vector<float>> ddd_compare_feat(const std::vector<std::vector<float>> &feat1, const std::vector<std::vector<float>> &feat2, bool is_verbose) {
 
   int feat_dim = 2048;
   int num_cases = feat1.size() * feat2.size();
@@ -288,8 +288,8 @@ std::vector<std::vector<int>> detect_keypoints_filtered(float* scene_tsdf, int x
 }
 
 ///////////////////////////////////////////////////////////////////////
-void ddd_align_feature_cloud(std::vector<std::vector<float>> world_keypoints1, std::vector<std::vector<float>> feat1,
-                             std::vector<std::vector<float>> world_keypoints2, std::vector<std::vector<float>> feat2,
+void ddd_align_feature_cloud(const std::vector<std::vector<float>> &world_keypoints1, const std::vector<std::vector<float>> &feat1,
+                             const std::vector<std::vector<float>> &world_keypoints2, const std::vector<std::vector<float>> &feat2,
                              float voxelSize, float k_match_score_thresh, float ransac_k, float max_ransac_iter, float ransac_thresh, float* Rt) {
 
     // Compare feature vectors and compute score matrix
@@ -395,11 +395,11 @@ void ddd_compute_feature_cloud(float* scene_tsdf, int x_dim, int y_dim, int z_di
     // Compute ddd features from keypoints
     tic();
     feat_out = ddd_get_keypoint_feat(scene_tsdf, x_dim, y_dim, z_dim, valid_keypoints, local_patch_radius, ddd_verbose);
-    std::cout << "Computing features for keypoints from first TSDF volume. ";
+    std::cout << "Computing features for keypoints from TSDF volume. ";
     toc();
 
     // Convert valid keypoints from grid to world coordinates
-    std::vector<std::vector<float>> world_keypoints;
+    world_keypoints_out.clear();
     for (int i = 0; i < valid_keypoints.size(); i++) {
         std::vector<float> tmp_keypoint;
         tmp_keypoint.push_back((float)valid_keypoints[i][0] * voxelSize + world_origin_x);

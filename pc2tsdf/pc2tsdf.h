@@ -8,6 +8,7 @@
 #include "ext/vec3.h"
 #include "ext/vec4.h"
 #include "ext/mat4.h"
+#include "ext/grid2.h"
 #include "ext/grid3.h"
 #include "ext/boundingBox3.h"
 
