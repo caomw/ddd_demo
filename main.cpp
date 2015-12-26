@@ -11,6 +11,8 @@
 
 int main() {
 
+  /* DEPRECATED
+
   const float voxelSize = 0.01f;
   const float truncationRadius = 0.05f;
 
@@ -118,8 +120,8 @@ int main() {
 
     // Print out both point clouds
     // if (cloud_idx == 0) {
-      std::string pcfile1 = "test" + std::to_string(cloud_idx) + "_" + std::to_string(cloud_idx + 1) + "_" + std::to_string(cloud_idx) + ".ply";
-      PointCloudIOf::saveToFile(pcfile1, cloud1);
+    std::string pcfile1 = "test" + std::to_string(cloud_idx) + "_" + std::to_string(cloud_idx + 1) + "_" + std::to_string(cloud_idx) + ".ply";
+    PointCloudIOf::saveToFile(pcfile1, cloud1);
     // }
     std::string pcfile2 = "test" + std::to_string(cloud_idx) + "_" + std::to_string(cloud_idx + 1) + "_" + std::to_string(cloud_idx + 1) + ".ply";
     PointCloudIOf::saveToFile(pcfile2, cloud2);
@@ -129,6 +131,8 @@ int main() {
     delete [] scene_tsdf2;
     delete [] Rt;
   }
+
+  */
 
   return 0;
 }

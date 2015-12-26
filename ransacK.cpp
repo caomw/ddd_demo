@@ -391,8 +391,8 @@ void estimateRigidTransform(const float* x_in, const float* y_in, const int poin
   //printf("x_centroid:\n");
   //printf("%f,%f,%f\n",y_centroid[0],y_centroid[1],y_centroid[2]);
 
-  float* x = new float[3*pointCount];
-  float* y = new float[3*pointCount];
+  float* x = new float[3 * pointCount];
+  float* y = new float[3 * pointCount];
   for (int i = 0; i < pointCount; i++) {
     x[0 + i * 3] = x_in[0 + i * 3] - x_centroid[0];
     x[1 + i * 3] = x_in[1 + i * 3] - x_centroid[1];
@@ -408,21 +408,21 @@ void estimateRigidTransform(const float* x_in, const float* y_in, const int poin
   //   printf("%f,%f,%f\n",x[0+jj*3],x[1+3*jj],x[2+3*jj]);
   // }
   //y_centrized = y
-  float* R12 = new float[3*pointCount];
+  float* R12 = new float[3 * pointCount];
   for  (int i = 0; i < pointCount; i++) {
     R12[0 + i * 3] = y[0 + i * 3] - x[0 + i * 3];
     R12[1 + i * 3] = y[1 + i * 3] - x[1 + i * 3];
     R12[2 + i * 3] = y[2 + i * 3] - x[2 + i * 3];
   }
 
-  float* R21 = new float[3*pointCount];
+  float* R21 = new float[3 * pointCount];
   for  (int i = 0; i < pointCount; i++) {
     R21[0 + i * 3] = - y[0 + i * 3] + x[0 + i * 3];
     R21[1 + i * 3] = - y[1 + i * 3] + x[1 + i * 3];
     R21[2 + i * 3] = - y[2 + i * 3] + x[2 + i * 3];
   }
 
-  float* R22_1 = new float[3*pointCount];
+  float* R22_1 = new float[3 * pointCount];
   for  (int i = 0; i < pointCount; i++) {
     R22_1[0 + i * 3] = y[0 + i * 3] + x[0 + i * 3];
     R22_1[1 + i * 3] = y[1 + i * 3] + x[1 + i * 3];
@@ -447,11 +447,11 @@ void estimateRigidTransform(const float* x_in, const float* y_in, const int poin
 
   //float R22[3][3][3];
   float*** R22 = new float**[3];
-  for (int i = 0; i<3;i++){
-      R22[i] = new float*[3];
-      for (int j = 0; j<3; j++){
-        R22[i][j] = new float[pointCount];
-      }
+  for (int i = 0; i < 3; i++) {
+    R22[i] = new float*[3];
+    for (int j = 0; j < 3; j++) {
+      R22[i][j] = new float[pointCount];
+    }
   }
 
   crossTimesMatrix(R22_1, pointCount, R22);
@@ -593,13 +593,13 @@ void estimateRigidTransform(const float* x_in, const float* y_in, const int poin
   }
   */
 
-  delete[] x,y,R12,R21,R22_1;
+  delete[] x, y, R12, R21, R22_1;
 
-  for (int i = 0; i<3;i++){
-      for (int j = 0; j<3; j++){
-        delete [] R22[i][j];
-      }
-      delete [] R22[i];
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      delete [] R22[i][j];
+    }
+    delete [] R22[i];
   }
   delete[] R22;
 
@@ -608,8 +608,8 @@ void estimateRigidTransform(const float* x_in, const float* y_in, const int poin
 }
 
 std::vector<int> TestRigidTransformError(const std::vector< std::vector<float> > refCoord, const std::vector< std::vector<float> > movCoord,
-                             const std::vector< std::vector<int> > RankInd,
-                             float * RTthis, float thresh2, const int topK, int *d_counts)
+    const std::vector< std::vector<int> > RankInd,
+    float * RTthis, float thresh2, const int topK, int *d_counts)
 {
   int cnt = 0;
   std::vector<int> inliner;
@@ -632,11 +632,11 @@ std::vector<int> TestRigidTransformError(const std::vector< std::vector<float> >
 
         float err = (xt - x1) * (xt - x1) + (yt - y1) * (yt - y1) + (zt - z1) * (zt - z1);
 
-        if (err < min_err){
-            min_err = err;
-            min_err_ind = j;
+        if (err < min_err) {
+          min_err = err;
+          min_err_ind = j;
         }
-          
+
 
       }
       if (min_err < thresh2) {
@@ -652,8 +652,8 @@ std::vector<int> TestRigidTransformError(const std::vector< std::vector<float> >
 }
 
 int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vector< std::vector<float> > movCoord,
-                 const std::vector< std::vector<int> > RankInd, const int topK,
-                 const int numLoops, const float thresh, float* rigidtransform)
+                const std::vector< std::vector<int> > RankInd, const int topK,
+                const int numLoops, const float thresh, float* rigidtransform)
 {
   //RankInd for every refCoord point top K matches RankInd.size()==refNum
   int refNum = refCoord.size();
@@ -670,6 +670,7 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
   int sample[3];
   int maxCount = -1;
   std::vector<int> bestinlier;
+  // int conv_num_loops = numLoops;
   for (int iter = 0; iter < numLoops; ++iter) {
     // Draw three points from refCoord
     int p1 = (int) floor(gen_random_float(0, refNum));
@@ -707,7 +708,6 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
     // Tranform the data and compute the error
     std::vector<int> inlier = TestRigidTransformError(refCoord, movCoord, RankInd, h_RT, thresh2, topK, &h_count);
 
-
     if (h_count > maxCount) {
       //printf("ref sample: %d %d %d\n",p1,p2,p3);
       //printf("corr_sample: %d %d %d\n",corr_sample[0],corr_sample[1],corr_sample[2]);
@@ -718,27 +718,41 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
         rigidtransform[i] = h_RT[i];
       }
 
+      // Update estimate of N, the number of trials to ensure we pick,
+      // with probability p, a data set with no outliers.
+      // float p = 0.9999f;
+      // float frac_inliers =  (float) maxCount / (float) refCoord.size();
+      // printf("%f\n",frac_inliers);
+      // float pNoOutliers = 1 - frac_inliers * frac_inliers * frac_inliers;
+      // pNoOutliers = comp_max(std::numeric_limits<float>::epsilon(), pNoOutliers);  // Avoid division by - Inf
+      // pNoOutliers = comp_min(1 - std::numeric_limits<float>::epsilon(), pNoOutliers); // Avoid division by 0.
+      // conv_num_loops = (int) std::floor(std::log(1 - p) / std::log(pNoOutliers));
+      // conv_num_loops = comp_max(conv_num_loops, 100000); // at least try 20 times
     }
+
+    // if (iter > conv_num_loops)
+    //   break;
+
   }
 
   for (int jj = 0; jj < 3; jj++) {
     printf("%f,%f,%f,%f\n", rigidtransform[0 + jj * 4], rigidtransform[1 + 4 * jj], rigidtransform[2 + 4 * jj], rigidtransform[3 + 4 * jj]);
   }
 
-  // reestimate RT based on inliners 
-  float * refCoord_inlier = new float[maxCount*3];
-  float * movCoord_inlier = new float[maxCount*3];
-  for (int i = 0; i<maxCount; ++i){
-    for (int j =0;j<3;j++){
-      refCoord_inlier[3*i+j] = refCoord[bestinlier[2*i]][j];
-      int tmp_idx = RankInd[bestinlier[2*i]][bestinlier[2*i+1]];
-      movCoord_inlier[3*i+j] = movCoord[tmp_idx][j];
+  // reestimate RT based on inliners
+  float * refCoord_inlier = new float[maxCount * 3];
+  float * movCoord_inlier = new float[maxCount * 3];
+  for (int i = 0; i < maxCount; ++i) {
+    for (int j = 0; j < 3; j++) {
+      refCoord_inlier[3 * i + j] = refCoord[bestinlier[2 * i]][j];
+      int tmp_idx = RankInd[bestinlier[2 * i]][bestinlier[2 * i + 1]];
+      movCoord_inlier[3 * i + j] = movCoord[tmp_idx][j];
     }
   }
   printf("========================================================================================================================\n");
 
   printf("inliers: %d \n", maxCount);
-  estimateRigidTransform(refCoord_inlier, movCoord_inlier, maxCount, rigidtransform); 
+  estimateRigidTransform(refCoord_inlier, movCoord_inlier, maxCount, rigidtransform);
   delete[] refCoord_inlier;
   delete[] movCoord_inlier;
 

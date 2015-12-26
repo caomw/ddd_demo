@@ -419,9 +419,6 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
     }
   }
 
-  std::cout << world_keypoints1.size() << std::endl;
-  std::cout << world_keypoints2.size() << std::endl;
-
   // Compute Rt transform from second to first point cloud (k-ransac)
   std::cout << "Estimating rigid transform..." << std::endl;
   int num_inliers = ransacfitRt(world_keypoints1, world_keypoints2, match_idx, ransac_k, max_ransac_iter, ransac_thresh, Rt);
@@ -443,12 +440,5 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
   //   fprintf(fp, "\n");
   // }
   // fclose(fp);
-
-  bool use_matlab_icp = true;
-  if (use_matlab_icp) {
-    
-  }
-
-
 
 }
