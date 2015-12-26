@@ -79,13 +79,14 @@ public:
 
     static Result match(const std::string &pointCloudFileA, const std::string &pointCloudFileB, int cloudIndA, int cloudIndB, float voxelSize, float truncationRadius, float maxKeypointMatchDist)
     {
-        std::cout << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
-
+        std::cout << std::endl << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
+        tic();
         FlatTSDF tsdfA = plyToTSDF(pointCloudFileA, voxelSize, truncationRadius);
         FlatTSDF tsdfB = plyToTSDF(pointCloudFileB, voxelSize, truncationRadius);
-
-        std::cout << "OriginA: " << tsdfA.origin << std::endl;
-        std::cout << "DimA: " << tsdfA.dim << std::endl;
+        std::cout << "Loading point clouds as TSDFs. ";
+        toc();
+        // std::cout << "OriginA: " << tsdfA.origin << std::endl;
+        // std::cout << "DimA: " << tsdfA.dim << std::endl;
 
         ///////////////////////////////////////////////////////////////////
 
@@ -184,6 +185,7 @@ public:
         if (debugDump) {
             ///////////////////////////////////////////////////////////////////
             // DEBUG: save point aligned point clouds
+            tic();
 
             auto cloud1 = PointCloudIOf::loadFromFile(pointCloudFileA);
             auto cloud2 = PointCloudIOf::loadFromFile(pointCloudFileB);
@@ -214,6 +216,9 @@ public:
             PointCloudIOf::saveToFile(pcfile1, cloud1);
             std::string pcfile2 = "results/debug" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndB) + ".ply";
             PointCloudIOf::saveToFile(pcfile2, cloud2);
+
+            std::cout << "Saving point cloud visualizations. ";
+            toc();
         }
 
         ///////////////////////////////////////////////////////////////////

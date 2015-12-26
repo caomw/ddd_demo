@@ -27,11 +27,11 @@ int main()
         allFragments.push_back(fragmentFilename);
     }
     
+    bool dir_success = system("mkdir results");
     for (int i = 0; i < fragmentCount; i++)
     {
         for (int j = 0; j < fragmentCount; j++)
         {
-            bool dir_success = system("mkdir results");
             const string resultFilename = "results/match" + to_string(i) + "-" + to_string(j) + ".txt";
             if (j <= i || util::fileExists(resultFilename))
                 continue;

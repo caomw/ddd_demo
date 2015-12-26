@@ -4,8 +4,9 @@
 #include <iostream>     
 #include <functional> 
 #include "ransacK.cpp"  
+#include "util.h"
 
-const bool ddd_verbose = true;
+const bool ddd_verbose = false;
 
 ///////////////////////////////////////////////////////////////////////
 // Given a location (x, y, z) in the voxel volume, return a local voxel
@@ -125,7 +126,7 @@ std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, 
   std::string cuda_lib_dir = "/usr/local/cuda/lib64";
 
   // Run marvin to get tensor file of feature vectors
-  sys_command("rm " + feat_tensor_filename);
+  // sys_command("rm " + feat_tensor_filename);
   if (is_verbose)
     sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " feat " + feat_tensor_filename);
   else
@@ -235,7 +236,7 @@ std::vector<std::vector<float>> ddd_compare_feat(std::vector<std::vector<float>>
 
   // Run marvin to get tensor file of match scores
   model_filename = "ddd/dddnet.marvin";
-  sys_command("rm " + prob_tensor_filename);
+  // sys_command("rm " + prob_tensor_filename);
   if (is_verbose)
     sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " prob " + prob_tensor_filename);
   else
@@ -296,7 +297,10 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
   // }
 
   // Find keypoints in first TUDF
+  tic();
   std::vector<std::vector<int>> keypoints1 = detect_keypoints(scene_tsdf1, x_dim1, y_dim1, z_dim1, 0.2f, 1.0f, 5, 100.0f);
+  std::cout << "Detecting harris keypoints in first TSDF volume. ";
+  toc();
 
   // Filter out keypoints too close to the bounding box of the voxel volume
   int local_patch_radius = 15;
@@ -308,8 +312,11 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
       valid_keypoints1.push_back(keypoints1[i]);
 
   // Compute ddd features from keypoints
+  tic();
   std::vector<std::vector<float>> feat1;  
   feat1 = ddd_get_keypoint_feat(scene_tsdf1, x_dim1, y_dim1, z_dim1, valid_keypoints1, local_patch_radius, ddd_verbose);
+  std::cout << "Computing features for keypoints from first TSDF volume. ";
+  toc();
 
   // Convert valid keypoints from grid to world coordinates
   std::vector<std::vector<float>> world_keypoints1;
@@ -324,7 +331,10 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
   //-------------------------------------------------------------//
 
   // Find keypoints in second TUDF
+  tic();
   std::vector<std::vector<int>> keypoints2 = detect_keypoints(scene_tsdf2, x_dim2, y_dim2, z_dim2, 0.2f, 1.0f, 5, 100.0f);
+  std::cout << "Detecting harris keypoints in second TSDF volume. ";
+  toc();
 
   // Filter out keypoints too close to the bounding box of the voxel volume
   local_patch_radius = 15;
@@ -336,8 +346,11 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
       valid_keypoints2.push_back(keypoints2[i]);
 
   // Compute ddd features from keypoints
+  tic();
   std::vector<std::vector<float>> feat2;  
   feat2 = ddd_get_keypoint_feat(scene_tsdf2, x_dim2, y_dim2, z_dim2, valid_keypoints2, local_patch_radius, ddd_verbose);
+  std::cout << "Computing features for keypoints from second TSDF volume. ";
+  toc();
 
   // Convert valid keypoints from grid to world coordinates
   std::vector<std::vector<float>> world_keypoints2;
@@ -352,8 +365,11 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
   //-------------------------------------------------------------//
  
   // Compare feature vectors and compute score matrix
+  tic();
   std::vector<std::vector<float>> score_matrix1;  
   score_matrix1 = ddd_compare_feat(feat1, feat2, ddd_verbose);
+  std::cout << "Comparing keypoint features from both TSDF volumes. ";
+  toc();
 
   // For each keypoint from first set, find indices of all keypoints
   // in second set with score > k_match_score_thresh
@@ -374,8 +390,11 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
   }
 
   // Inversely compare feature vectors and compute score matrix
+  tic();
   std::vector<std::vector<float>> score_matrix2;  
   score_matrix2 = ddd_compare_feat(feat2, feat1, ddd_verbose);
+  std::cout << "Comparing *flipped* keypoint features from both TSDF volumes. ";
+  toc();
 
   // For each keypoint from second set, find indices of all keypoints
   // in first set with score > k_match_score_thresh
@@ -420,8 +439,10 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
   }
 
   // Compute Rt transform from second to first point cloud (k-ransac)
-  std::cout << "Estimating rigid transform..." << std::endl;
-  int num_inliers = ransacfitRt(world_keypoints1, world_keypoints2, match_idx, ransac_k, max_ransac_iter, ransac_thresh, Rt);
+  tic();
+  int num_inliers = ransacfitRt(world_keypoints1, world_keypoints2, match_idx, ransac_k, max_ransac_iter, ransac_thresh, Rt, ddd_verbose);
+  std::cout << "Estimating rigid transform (via RANSAC-k). ";
+  toc();
 
   // // DEBUG: Save stuff for MATLAB RANSAC
   // FILE *fp = fopen("TMPkeypoints1.txt", "w");
