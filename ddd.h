@@ -184,7 +184,7 @@ std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, 
 }
 
 ///////////////////////////////////////////////////////////////////////
-std::vector<std::vector<float>> ddd_compare_feat(const std::vector<std::vector<float>> &feat1, const std::vector<std::vector<float>> &feat2, bool is_verbose) {
+void ddd_compare_feat(const std::vector<std::vector<float>> &feat1, const std::vector<std::vector<float>> &feat2, std::vector<std::vector<float>>* score_matrix, bool is_verbose) {
 
   int feat_dim = 2048;
   int num_cases = feat1.size() * feat2.size();
@@ -282,7 +282,6 @@ std::vector<std::vector<float>> ddd_compare_feat(const std::vector<std::vector<f
   sys_command("rm " + new_architecture_filename);
 
   // Save match scores to matrix 
-  std::vector<std::vector<float>> score_matrix;
   std::ifstream inFile(prob_tensor_filename.c_str(), std::ios::binary | std::ios::in);
   int header_bytes = (1 + 4 + 4) + (4) + (4 + 4 + 4 + 4 + 4);
   inFile.seekg(size_t(header_bytes));
@@ -296,11 +295,10 @@ std::vector<std::vector<float>> ddd_compare_feat(const std::vector<std::vector<f
     std::vector<float> tmp_score_vect;
     for (int j = 0; j < feat2.size(); j++)
       tmp_score_vect.push_back(match_scores[i * feat2.size() + j]);
-    score_matrix.push_back(tmp_score_vect);
+    score_matrix->push_back(tmp_score_vect);
   }
 
   sys_command("rm " + prob_tensor_filename);
-  return score_matrix;
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -325,16 +323,25 @@ std::vector<std::vector<int>> detect_keypoints_filtered(float* scene_tsdf, int x
 }
 
 ///////////////////////////////////////////////////////////////////////
-void ddd_align_feature_cloud(const std::vector<std::vector<float>> &world_keypoints1, const std::vector<std::vector<float>> &feat1,
-                             const std::vector<std::vector<float>> &world_keypoints2, const std::vector<std::vector<float>> &feat2,
-                             float voxelSize, float k_match_score_thresh, float ransac_k, float max_ransac_iter, float ransac_thresh, float* Rt) {
-
+void ddd_compare_feature_cloud(const std::vector<std::vector<float>> &feat1, std::vector<std::vector<float>>* score_matrix1,
+                               const std::vector<std::vector<float>> &feat2, std::vector<std::vector<float>>* score_matrix2) {
     // Compare feature vectors and compute score matrix
     tic();
-    std::vector<std::vector<float>> score_matrix1;
-    score_matrix1 = ddd_compare_feat(feat1, feat2, ddd_verbose);
+    ddd_compare_feat(feat1, feat2, score_matrix1, ddd_verbose);
     std::cout << "Comparing keypoint features from both TSDF volumes. ";
+    toc();    
+
+    // Inversely compare feature vectors and compute score matrix
+    tic();
+    ddd_compare_feat(feat2, feat1, score_matrix2, ddd_verbose);
+    std::cout << "Comparing *flipped* keypoint features from both TSDF volumes. ";
     toc();
+}
+
+///////////////////////////////////////////////////////////////////////
+void ddd_align_feature_cloud(const std::vector<std::vector<float>> &world_keypoints1, const std::vector<std::vector<float>> &feat1, const std::vector<std::vector<float>> &score_matrix1,
+                             const std::vector<std::vector<float>> &world_keypoints2, const std::vector<std::vector<float>> &feat2, const std::vector<std::vector<float>> &score_matrix2,
+                             float voxelSize, float k_match_score_thresh, float ransac_k, float max_ransac_iter, float ransac_thresh, float* Rt) {
 
     // For each keypoint from first set, find indices of all keypoints
     // in second set with score > k_match_score_thresh
@@ -353,13 +360,6 @@ void ddd_align_feature_cloud(const std::vector<std::vector<float>> &world_keypoi
         // std::cout << tmp_score_rank.size() << std::endl;
         match_rank1.push_back(tmp_score_rank);
     }
-
-    // Inversely compare feature vectors and compute score matrix
-    tic();
-    std::vector<std::vector<float>> score_matrix2;
-    score_matrix2 = ddd_compare_feat(feat2, feat1, ddd_verbose);
-    std::cout << "Comparing *flipped* keypoint features from both TSDF volumes. ";
-    toc();
 
     // For each keypoint from second set, find indices of all keypoints
     // in first set with score > k_match_score_thresh
@@ -457,5 +457,8 @@ void align2tsdf(float* scene_tsdf1, int x_dim1, int y_dim1, int z_dim1, float wo
   ddd_compute_feature_cloud(scene_tsdf1, x_dim1, y_dim1, z_dim1, world_origin1_x, world_origin1_y, world_origin1_z, voxelSize, world_keypoints1, feat1);
   ddd_compute_feature_cloud(scene_tsdf2, x_dim2, y_dim2, z_dim2, world_origin2_x, world_origin2_y, world_origin2_z, voxelSize, world_keypoints2, feat2);
 
-  ddd_align_feature_cloud(world_keypoints1, feat1, world_keypoints2, feat2, voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_thresh, Rt);
+  std::vector<std::vector<float>> score_matrix1, score_matrix2;
+  ddd_compare_feature_cloud(feat1, &score_matrix1, feat2, &score_matrix2);
+
+  ddd_align_feature_cloud(world_keypoints1, feat1, score_matrix1, world_keypoints2, feat2, score_matrix2, voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_thresh, Rt);
 }

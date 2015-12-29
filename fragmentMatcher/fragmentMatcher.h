@@ -112,7 +112,23 @@ public:
         //   }
         // }
 
-        ddd_align_feature_cloud(cloudA.keypoints, cloudA.features, cloudB.keypoints, cloudB.features,
+        // Check to see if there already exists pre-computed comparisons
+        // match_scores_0_1.dat match_scores_0_1_inv.dat
+        const std::string cacheDir = "featCache/";
+        sys_command("mkdir " + cacheDir);
+        std::string score_matrix1_filename = cacheDir + "match_scores_" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + ".dat";
+        std::string score_matrix2_filename = cacheDir + "match_scores_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndA) + ".dat";
+        std::vector<std::vector<float>> score_matrix1, score_matrix2;
+        if (util::fileExists(score_matrix1_filename) && util::fileExists(score_matrix2_filename)) {
+            loadGrid(score_matrix1_filename, score_matrix1);
+            loadGrid(score_matrix2_filename, score_matrix2);
+        } else {
+            ddd_compare_feature_cloud(cloudA.features, &score_matrix1, cloudB.features, &score_matrix2);
+            saveGrid(score_matrix1_filename, score_matrix1);
+            saveGrid(score_matrix2_filename, score_matrix2);
+        }
+
+        ddd_align_feature_cloud(cloudA.keypoints, cloudA.features, score_matrix1, cloudB.keypoints, cloudB.features, score_matrix2,
             voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_inlier_thresh, Rt);
 
         ///////////////////////////////////////////////////////////////////
@@ -237,12 +253,12 @@ public:
 
           printf("Pre-ICP avg err: %f\n", prior_icp_avg_dist);
           printf("Post-ICP avg err: %f\n", post_icp_avg_dist);
-          if (post_icp_avg_dist >= prior_icp_avg_dist) {
-            std::cout << "Using ICP to re-adjust RANSAC rigid transform. ";
-            result = post_icp_result;
+          if (post_icp_avg_dist <= prior_icp_avg_dist) {
+              std::cout << "Using ICP to re-adjust RANSAC rigid transform. ";
+              result = post_icp_result;
           } else {
-            std::cout << "ICP results do not improve rigid transform, using RANSAC only.";
-            final_Rt = Rt;
+              std::cout << "ICP results do not improve rigid transform, using RANSAC only.";
+              final_Rt = Rt;
           }
           toc();
         }
