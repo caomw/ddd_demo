@@ -117,6 +117,40 @@ public:
 
         ///////////////////////////////////////////////////////////////////
         
+        float prior_icp_avg_dist = 0;
+        Result prior_icp_result;
+        for (auto &x : cloudA.keypoints)
+            prior_icp_result.keypointsA.push_back(makeVec3(x));
+        for (auto &x : cloudB.keypoints)
+            prior_icp_result.keypointsB.push_back(makeVec3(x));
+        prior_icp_result.transformBToA = mat4f::identity();
+        for (int i = 0; i < 4; i++)
+            for (int j = 0; j < 3; j++)
+                prior_icp_result.transformBToA(j, i) = Rt[j * 4 + i];
+        pc2tsdf::UniformAccelerator acceleratorA(prior_icp_result.keypointsA, maxKeypointMatchDist);
+        //transform B's keypoints into A's
+        std::vector<vec3f> keypointsBtransformed = prior_icp_result.keypointsB;
+        for (auto &bPt : keypointsBtransformed)
+        {
+            const vec3f bPtInA = prior_icp_result.transformBToA * bPt;
+            const auto closestPt = acceleratorA.findClosestPoint(bPtInA);
+            const float dist = vec3f::dist(bPtInA, closestPt.first);
+            if (dist <= maxKeypointMatchDist)
+            {
+                KeypointMatch match;
+                match.posA = closestPt.first;
+                match.posB = bPt;
+                match.alignmentError = dist;
+                prior_icp_result.matches.push_back(match);
+                prior_icp_avg_dist += dist;
+            }
+        }
+        prior_icp_result.matchFound = prior_icp_result.matches.size() > 0;
+        prior_icp_avg_dist = prior_icp_avg_dist/((float) prior_icp_result.matches.size());
+        Result result = prior_icp_result;
+
+        ///////////////////////////////////////////////////////////////////
+
         float* final_Rt = new float[16];
         final_Rt = Rt;
 
@@ -170,7 +204,46 @@ public:
           sys_command("rm " + icprt_filename);
           sys_command("rm " + new_matlab_icp_filename);
 
-          std::cout << "Using ICP to re-adjust rigid transform. ";
+          // Double check to see if ICP is better
+          float post_icp_avg_dist = 0;
+          Result post_icp_result; 
+          for (auto &x : cloudA.keypoints)
+              post_icp_result.keypointsA.push_back(makeVec3(x));
+          for (auto &x : cloudB.keypoints)
+              post_icp_result.keypointsB.push_back(makeVec3(x));
+          post_icp_result.transformBToA = mat4f::identity();
+          for (int i = 0; i < 4; i++)
+              for (int j = 0; j < 3; j++)
+                  post_icp_result.transformBToA(j, i) = final_Rt[j * 4 + i];
+          pc2tsdf::UniformAccelerator acceleratorA(post_icp_result.keypointsA, maxKeypointMatchDist);
+          std::vector<vec3f> keypointsBtransformed = post_icp_result.keypointsB;
+          for (auto &bPt : keypointsBtransformed)
+          {
+              const vec3f bPtInA = post_icp_result.transformBToA * bPt;
+              const auto closestPt = acceleratorA.findClosestPoint(bPtInA);
+              const float dist = vec3f::dist(bPtInA, closestPt.first);
+              if (dist <= maxKeypointMatchDist)
+              {
+                  KeypointMatch match;
+                  match.posA = closestPt.first;
+                  match.posB = bPt;
+                  match.alignmentError = dist;
+                  post_icp_result.matches.push_back(match);
+                  post_icp_avg_dist += dist;
+              }
+          }
+          post_icp_result.matchFound = post_icp_result.matches.size() > 0;
+          post_icp_avg_dist = post_icp_avg_dist/((float) post_icp_result.matches.size());
+
+          printf("Pre-ICP avg err: %f\n", prior_icp_avg_dist);
+          printf("Post-ICP avg err: %f\n", post_icp_avg_dist);
+          if (post_icp_avg_dist >= prior_icp_avg_dist) {
+            std::cout << "Using ICP to re-adjust RANSAC rigid transform. ";
+            result = post_icp_result;
+          } else {
+            std::cout << "ICP results do not improve rigid transform, using RANSAC only.";
+            final_Rt = Rt;
+          }
           toc();
         }
 
@@ -266,37 +339,7 @@ public:
         ///////////////////////////////////////////////////////////////////
 
         // TODO: this is redundant with align2tsdf
-        Result result;
-        for (auto &x : cloudA.keypoints)
-            result.keypointsA.push_back(makeVec3(x));
-        for (auto &x : cloudB.keypoints)
-            result.keypointsB.push_back(makeVec3(x));
-
-        result.transformBToA = mat4f::identity();
-        for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 3; j++)
-                result.transformBToA(j, i) = final_Rt[j * 4 + i];
         
-        pc2tsdf::UniformAccelerator acceleratorA(result.keypointsA, maxKeypointMatchDist);
-        
-        //transform B's keypoints into A's
-        std::vector<vec3f> keypointsBtransformed = result.keypointsB;
-        for (auto &bPt : keypointsBtransformed)
-        {
-            const vec3f bPtInA = result.transformBToA * bPt;
-            const auto closestPt = acceleratorA.findClosestPoint(bPtInA);
-            const float dist = vec3f::dist(bPtInA, closestPt.first);
-            if (dist <= maxKeypointMatchDist)
-            {
-                KeypointMatch match;
-                match.posA = closestPt.first;
-                match.posB = bPt;
-                match.alignmentError = dist;
-                result.matches.push_back(match);
-            }
-        }
-
-        result.matchFound = result.matches.size() > 0;
 
         std::cout << "Keypoint matches found: " << result.matches.size() << std::endl;
 

@@ -9,7 +9,7 @@ int main(int argc, char **argv)
 {
     const float voxelSize = 0.01f;
     const float truncationRadius = 0.05f;
-    const float maxKeypointMatchDist = 0.03f;
+    const float maxKeypointMatchDist = 0.04f;
     const int fragmentCount = 57;
     //const string fragmentPrefix = "/data/andyz/kinfu/data/augICLNUIMDataset/fragments/livingroom1-fragments-ply/cloud_bin_";
     const string fragmentPrefix = "../ddd_data/cloud_bin_";
