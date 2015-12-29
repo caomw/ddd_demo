@@ -6,7 +6,7 @@
 #include "ransacK.cpp"  
 // #include "util.h"
 
-const bool ddd_verbose = true;
+const bool ddd_verbose = false;
 
 ///////////////////////////////////////////////////////////////////////
 // Given a location (x, y, z) in the voxel volume, return a local voxel
@@ -184,7 +184,7 @@ std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, 
 }
 
 ///////////////////////////////////////////////////////////////////////
-void ddd_compare_feat(const std::vector<std::vector<float>> &feat1, const std::vector<std::vector<float>> &feat2, std::vector<std::vector<float>>* score_matrix, bool is_verbose) {
+void ddd_compare_feat(std::vector<std::vector<float>> &feat1, std::vector<std::vector<float>> &feat2, std::vector<std::vector<float>>* score_matrix, bool is_verbose) {
 
   int feat_dim = 2048;
   int num_cases = feat1.size() * feat2.size();
@@ -242,15 +242,9 @@ void ddd_compare_feat(const std::vector<std::vector<float>> &feat1, const std::v
       if (ddd_verbose)
         std::cout << "Loading keypoint comparison: " << i*feat2.size() + j << "/" << feat1.size() * feat2.size() - 1 << std::endl;
       // Save feature vector 2
-      for (int k = 0; k < feat_dim; k++) {
-        float feat2_val = feat2[j][k];
-        fwrite(&feat2_val, sizeof(float), 1, data_tensor_fp);
-      }
+      fwrite(&feat2[j][0], sizeof(float), feat2[j].size(), data_tensor_fp);
       // Save feature vector 1
-      for (int k = 0; k < feat_dim; k++) {
-        float feat1_val = feat1[i][k];
-        fwrite(&feat1_val, sizeof(float), 1, data_tensor_fp);
-      }
+      fwrite(&feat1[i][0], sizeof(float), feat1[i].size(), data_tensor_fp);
       float tmp_label = 0;
       fwrite(&tmp_label, sizeof(float), 1, label_tensor_fp);
     }
@@ -323,8 +317,8 @@ std::vector<std::vector<int>> detect_keypoints_filtered(float* scene_tsdf, int x
 }
 
 ///////////////////////////////////////////////////////////////////////
-void ddd_compare_feature_cloud(const std::vector<std::vector<float>> &feat1, std::vector<std::vector<float>>* score_matrix1,
-                               const std::vector<std::vector<float>> &feat2, std::vector<std::vector<float>>* score_matrix2) {
+void ddd_compare_feature_cloud(std::vector<std::vector<float>> &feat1, std::vector<std::vector<float>>* score_matrix1,
+                               std::vector<std::vector<float>> &feat2, std::vector<std::vector<float>>* score_matrix2) {
     // Compare feature vectors and compute score matrix
     tic();
     ddd_compare_feat(feat1, feat2, score_matrix1, ddd_verbose);
@@ -339,8 +333,8 @@ void ddd_compare_feature_cloud(const std::vector<std::vector<float>> &feat1, std
 }
 
 ///////////////////////////////////////////////////////////////////////
-void ddd_align_feature_cloud(const std::vector<std::vector<float>> &world_keypoints1, const std::vector<std::vector<float>> &feat1, const std::vector<std::vector<float>> &score_matrix1,
-                             const std::vector<std::vector<float>> &world_keypoints2, const std::vector<std::vector<float>> &feat2, const std::vector<std::vector<float>> &score_matrix2,
+void ddd_align_feature_cloud(const std::vector<std::vector<float>> &world_keypoints1, std::vector<std::vector<float>> &feat1, const std::vector<std::vector<float>> &score_matrix1,
+                             const std::vector<std::vector<float>> &world_keypoints2, std::vector<std::vector<float>> &feat2, const std::vector<std::vector<float>> &score_matrix2,
                              float voxelSize, float k_match_score_thresh, float ransac_k, float max_ransac_iter, float ransac_thresh, float* Rt) {
 
     // For each keypoint from first set, find indices of all keypoints

@@ -33,9 +33,11 @@ int main(int argc, char **argv)
         for (int j = 0; j < fragmentCount; j++)
         {
             const string resultFilename = "results/match" + to_string(i) + "-" + to_string(j) + ".txt";
-            if (j <= i || util::fileExists(resultFilename))
+            if (j < i || util::fileExists(resultFilename))
                 continue;
-            
+            // Score matrix only
+            // FragmentMatcher::match_only(allFragments[i], allFragments[j], i, j, voxelSize, truncationRadius, maxKeypointMatchDist);
+            // // Aligns
             auto result = FragmentMatcher::match(allFragments[i], allFragments[j], i, j, voxelSize, truncationRadius, maxKeypointMatchDist);
             result.saveASCII(resultFilename);
         }

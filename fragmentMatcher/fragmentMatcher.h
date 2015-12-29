@@ -70,6 +70,43 @@ public:
         return vec3f(v[0], v[1], v[2]);
     }
 
+    // Only passes both fragments in to compute score matrices, no alignment
+    static void match_only(const std::string &pointCloudFileA, const std::string &pointCloudFileB, int cloudIndA, int cloudIndB, float voxelSize, float truncationRadius, float maxKeypointMatchDist) {
+        std::cout << std::endl << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
+        
+        const float k_match_score_thresh = 0.01f;
+        const float ransac_k = 10; // RANSAC over top-k > k_match_score_thresh
+        const float max_ransac_iter = 1000000;
+        const float ransac_inlier_thresh = 0.04f;
+
+        FeatureCloud cloudA, cloudB;
+
+        tic();
+        plyToFeatureCloud(pointCloudFileA, voxelSize, truncationRadius, cloudA);
+        plyToFeatureCloud(pointCloudFileB, voxelSize, truncationRadius, cloudB);
+        toc();
+        std::cout << "feature clouds loaded, aligning... " << std::endl;
+        float* Rt = new float[16]; // Contains rigid transform matrix
+        Rt[12] = 0; Rt[13] = 0; Rt[14] = 0; Rt[15] = 1;
+
+        // Check to see if there already exists pre-computed comparisons
+        // match_scores_0_1.dat match_scores_0_1_inv.dat
+        const std::string cacheDir = "featCache/";
+        sys_command("mkdir " + cacheDir);
+        std::string score_matrix1_filename = cacheDir + "match_scores_" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + ".dat";
+        std::string score_matrix2_filename = cacheDir + "match_scores_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndA) + ".dat";
+        std::vector<std::vector<float>> score_matrix1, score_matrix2;
+        if (util::fileExists(score_matrix1_filename) && util::fileExists(score_matrix2_filename)) {
+            loadGrid(score_matrix1_filename, score_matrix1);
+            loadGrid(score_matrix2_filename, score_matrix2);
+        } else {
+            ddd_compare_feature_cloud(cloudA.features, &score_matrix1, cloudB.features, &score_matrix2);
+            saveGrid(score_matrix1_filename, score_matrix1);
+            saveGrid(score_matrix2_filename, score_matrix2);
+        }
+
+    }
+
     static Result match(const std::string &pointCloudFileA, const std::string &pointCloudFileB, int cloudIndA, int cloudIndB, float voxelSize, float truncationRadius, float maxKeypointMatchDist)
     {
         std::cout << std::endl << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
@@ -257,7 +294,7 @@ public:
               std::cout << "Using ICP to re-adjust RANSAC rigid transform. ";
               result = post_icp_result;
           } else {
-              std::cout << "ICP results do not improve rigid transform, using RANSAC only.";
+              std::cout << "ICP results do not improve rigid transform, using RANSAC only. ";
               final_Rt = Rt;
           }
           toc();
