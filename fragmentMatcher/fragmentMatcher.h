@@ -65,18 +65,6 @@ public:
       mOut[15] = m1[12] * m2[3] + m1[13] * m2[7] + m1[14] * m2[11] + m1[15] * m2[15];
     }
 
-    static float gen_random_float(float min, float max) {
-      std::random_device rd;
-      std::mt19937 mt(rd());
-      std::uniform_real_distribution<double> dist(min, max - 0.0001);
-      return dist(mt);
-    }
-
-    static void sys_command(std::string str) {
-      if (system(str.c_str()))
-        return;
-    }
-
     static vec3f makeVec3(const std::vector<float> &v)
     {
         return vec3f(v[0], v[1], v[2]);
@@ -86,9 +74,9 @@ public:
     {
         std::cout << std::endl << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
         
-        const float k_match_score_thresh = 0.5f;
-        const float ransac_k = 3; // RANSAC over top-k > k_match_score_thresh
-        const float max_ransac_iter = 500000;
+        const float k_match_score_thresh = 0.01f;
+        const float ransac_k = 10; // RANSAC over top-k > k_match_score_thresh
+        const float max_ransac_iter = 1000000;
         const float ransac_inlier_thresh = 0.04f;
 
         /*tic();
@@ -117,45 +105,15 @@ public:
         std::cout << "feature clouds loaded, aligning... " << std::endl;
         float* Rt = new float[16]; // Contains rigid transform matrix
         Rt[12] = 0; Rt[13] = 0; Rt[14] = 0; Rt[15] = 1;
+
+        // for (int i = 0; i < cloudA.features.size(); i++) {
+        //   for (int j = 0; j < 2048; j++) {
+        //     std::cout << cloudA.features[i][j] << std::endl;
+        //   }
+        // }
+
         ddd_align_feature_cloud(cloudA.keypoints, cloudA.features, cloudB.keypoints, cloudB.features,
             voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_inlier_thresh, Rt);
-
-        ///////////////////////////////////////////////////////////////////
-
-        // TODO: this is redundant with align2tsdf
-        Result result;
-        for (auto &x : cloudA.keypoints)
-            result.keypointsA.push_back(makeVec3(x));
-        for (auto &x : cloudB.keypoints)
-            result.keypointsB.push_back(makeVec3(x));
-
-        result.transformBToA = mat4f::identity();
-        for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 3; j++)
-                result.transformBToA(j, i) = Rt[j * 4 + i];
-        
-        pc2tsdf::UniformAccelerator acceleratorA(result.keypointsA, maxKeypointMatchDist);
-        
-        //transform B's keypoints into A's
-        std::vector<vec3f> keypointsBtransformed = result.keypointsB;
-        for (auto &bPt : keypointsBtransformed)
-        {
-            const vec3f bPtInA = result.transformBToA * bPt;
-            const auto closestPt = acceleratorA.findClosestPoint(bPtInA);
-            const float dist = vec3f::dist(bPtInA, closestPt.first);
-            if (dist <= maxKeypointMatchDist)
-            {
-                KeypointMatch match;
-                match.posA = closestPt.first;
-                match.posB = bPt;
-                match.alignmentError = dist;
-                result.matches.push_back(match);
-            }
-        }
-
-        result.matchFound = result.matches.size() > 0;
-
-        std::cout << "Keypoint matches found: " << result.matches.size() << std::endl;
 
         ///////////////////////////////////////////////////////////////////
         
@@ -163,17 +121,23 @@ public:
         final_Rt = Rt;
 
         // DISABLE ICP FOR NOW (too slow)
-        bool use_matlab_icp = false;
+        bool use_matlab_icp = true;
         if (use_matlab_icp) {
           tic();
+          // Create random hash ID for icp instance
+          std::string instance_id = gen_rand_str(16);
+          std::string pointcloud_filename1 = "TMPpointcloud1_" + instance_id + ".txt";
+          std::string pointcloud_filename2 = "TMPpointcloud2_" + instance_id + ".txt";
+          std::string icprt_filename = "TMPicpRt_" + instance_id + ".txt";
+
           // Save point clouds to files for matlab to read
           auto cloud1 = PointCloudIOf::loadFromFile(pointCloudFileA);
-          FILE *fp = fopen("TMPpointcloud1.txt", "w");
+          FILE *fp = fopen(pointcloud_filename1.c_str(), "w");
           for (int i = 0; i < cloud1.m_points.size(); i++)
             fprintf(fp, "%f %f %f\n", cloud1.m_points[i].x, cloud1.m_points[i].y, cloud1.m_points[i].z);
           fclose(fp);
           auto cloud2 = PointCloudIOf::loadFromFile(pointCloudFileB);
-          fp = fopen("TMPpointcloud2.txt", "w");
+          fp = fopen(pointcloud_filename2.c_str(), "w");
           for (int i = 0; i < cloud2.m_points.size(); i++) {
             vec3f tmp_point;
             tmp_point.x = Rt[0] * cloud2.m_points[i].x + Rt[1] * cloud2.m_points[i].y + Rt[2] * cloud2.m_points[i].z + Rt[3];
@@ -183,11 +147,15 @@ public:
           }
           fclose(fp);
 
+          std::string matlab_icp_filename = "matlab/main.m";
+          std::string new_matlab_icp_filename = "matlab/main_" + instance_id + ".m";
+          json_data_location_replace(matlab_icp_filename, new_matlab_icp_filename, ".txt", "_" + instance_id + ".txt");
+
           // Run matlab ICP
-          sys_command("cd matlab; matlab -nojvm < main.m >/dev/null; cd ..");
+          sys_command("cd matlab; matlab -nojvm < main_" + instance_id + ".m >/dev/null; cd ..");
           float *icp_Rt = new float[16];
           int iret;
-          fp = fopen("TMPicpRt.txt", "r");
+          fp = fopen(icprt_filename.c_str(), "r");
           for (int i = 0; i < 16; i++) {
             iret = fscanf(fp, "%f", &icp_Rt[i]);
           }
@@ -197,15 +165,16 @@ public:
           mulMatrix(icp_Rt, Rt, final_Rt);
 
           delete [] icp_Rt;
-          sys_command("rm TMPpointcloud1.txt");
-          sys_command("rm TMPpointcloud2.txt");
-          sys_command("rm TMPicpRt.txt");
+          sys_command("rm " + pointcloud_filename1);
+          sys_command("rm " + pointcloud_filename2);
+          sys_command("rm " + icprt_filename);
+          sys_command("rm " + new_matlab_icp_filename);
 
           std::cout << "Using ICP to re-adjust rigid transform. ";
           toc();
         }
 
-        const bool debugDump = false;
+        const bool debugDump = true;
         if (debugDump) {
             ///////////////////////////////////////////////////////////////////
             // DEBUG: save point aligned point clouds
@@ -293,6 +262,46 @@ public:
         //     std::string pcfile2 = "results/debug_matlab_" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + "_" + std::to_string(cloudIndB) + ".ply";
         //     PointCloudIOf::saveToFile(pcfile2, cloud2);
         // }
+
+        ///////////////////////////////////////////////////////////////////
+
+        // TODO: this is redundant with align2tsdf
+        Result result;
+        for (auto &x : cloudA.keypoints)
+            result.keypointsA.push_back(makeVec3(x));
+        for (auto &x : cloudB.keypoints)
+            result.keypointsB.push_back(makeVec3(x));
+
+        result.transformBToA = mat4f::identity();
+        for (int i = 0; i < 4; i++)
+            for (int j = 0; j < 3; j++)
+                result.transformBToA(j, i) = final_Rt[j * 4 + i];
+        
+        pc2tsdf::UniformAccelerator acceleratorA(result.keypointsA, maxKeypointMatchDist);
+        
+        //transform B's keypoints into A's
+        std::vector<vec3f> keypointsBtransformed = result.keypointsB;
+        for (auto &bPt : keypointsBtransformed)
+        {
+            const vec3f bPtInA = result.transformBToA * bPt;
+            const auto closestPt = acceleratorA.findClosestPoint(bPtInA);
+            const float dist = vec3f::dist(bPtInA, closestPt.first);
+            if (dist <= maxKeypointMatchDist)
+            {
+                KeypointMatch match;
+                match.posA = closestPt.first;
+                match.posB = bPt;
+                match.alignmentError = dist;
+                result.matches.push_back(match);
+            }
+        }
+
+        result.matchFound = result.matches.size() > 0;
+
+        std::cout << "Keypoint matches found: " << result.matches.size() << std::endl;
+
+        ///////////////////////////////////////////////////////////////////
+
 
         return result;
     }

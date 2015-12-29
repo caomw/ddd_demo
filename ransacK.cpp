@@ -4,18 +4,13 @@
 #include <vector>
 #include <assert.h>
 #include <limits>
+#include "util.h"
 
 
 #define comp_max(x,y) ((x)>(y)?(x):(y))
 #define comp_min(x,y) ((x)<(y)?(x):(y))
 #define SIGN(a, b) ((b) >= 0.0 ? fabs(a) : -fabs(a))
 
-float gen_random_float(float min, float max) {
-  std::random_device rd;
-  std::mt19937 mt(rd());
-  std::uniform_real_distribution<double> dist(min, max - 0.0001);
-  return dist(mt);
-}
 
 double PYTHAG(double a, double b)
 {
@@ -670,7 +665,7 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
   int sample[3];
   int maxCount = -1;
   std::vector<int> bestinlier;
-  int conv_num_loops = numLoops;
+  // int conv_num_loops = numLoops;
   for (int iter = 0; iter < numLoops; ++iter) {
     // Draw three points from refCoord
     int p1 = (int) floor(gen_random_float(0, refNum));
@@ -714,24 +709,24 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
       maxCount = h_count;
       bestinlier = inlier;
       if (is_verbose)
-        printf("RANSAC iteration: %d/%d, inliers: %d\n", iter, conv_num_loops, maxCount);
+        printf("RANSAC iteration: %d/%d, inliers: %d\n", iter, numLoops, maxCount);
       for (int i = 0; i < 12; i++) {
         rigidtransform[i] = h_RT[i];
       }
 
       // Update estimate of N, the number of trials to ensure we pick,
       // with probability p, a data set with no outliers.
-      float p = 0.9999f;
-      float frac_inliers =  (float) maxCount / (float) refCoord.size();
-      float pNoOutliers = 1 - frac_inliers * frac_inliers * frac_inliers;
-      pNoOutliers = comp_max(std::numeric_limits<float>::epsilon(), pNoOutliers);  // Avoid division by - Inf
-      pNoOutliers = comp_min(1 - std::numeric_limits<float>::epsilon(), pNoOutliers); // Avoid division by 0.
-      conv_num_loops = (int) std::floor(std::log(1 - p) / std::log(pNoOutliers));
-      conv_num_loops = comp_min(conv_num_loops, 100000); // at least try 10,000 times
+      // float p = 0.9999f;
+      // float frac_inliers =  (float) maxCount / (float) refCoord.size();
+      // float pNoOutliers = 1 - frac_inliers * frac_inliers * frac_inliers;
+      // pNoOutliers = comp_max(std::numeric_limits<float>::epsilon(), pNoOutliers);  // Avoid division by - Inf
+      // pNoOutliers = comp_min(1 - std::numeric_limits<float>::epsilon(), pNoOutliers); // Avoid division by 0.
+      // conv_num_loops = (int) std::floor(std::log(1 - p) / std::log(pNoOutliers));
+      // conv_num_loops = comp_min(conv_num_loops, 100000); // at least try 10,000 times
     }
 
-    if (iter > conv_num_loops)
-      break;
+    // if (iter > conv_num_loops)
+    //   break;
 
   }
 

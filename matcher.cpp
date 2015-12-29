@@ -5,7 +5,7 @@
 
 using namespace std;
 
-int main()
+int main(int argc, char **argv)
 {
     const float voxelSize = 0.01f;
     const float truncationRadius = 0.05f;
@@ -41,6 +41,17 @@ int main()
         }
     }
 
+    // For running on cpu clusters
+    // int idx = std::atoi(argv[1]);
+    // int i = (int) std::floor(((float)idx)/((float)fragmentCount));
+    // int j = idx%fragmentCount;
+    // const string resultFilename = "results/match" + to_string(i) + "-" + to_string(j) + ".txt";
+    // if (j <= i || util::fileExists(resultFilename))
+    //     return 0;
+    // auto result = FragmentMatcher::match(allFragments[i], allFragments[j], i, j, voxelSize, truncationRadius, maxKeypointMatchDist);
+    // result.saveASCII(resultFilename);
+
+    // // For aligning consecutive fragments
     // for (int i = 0; i < fragmentCount - 1; i++)
     // {
     //     const string resultFilename = "results/match" + to_string(i) + "-" + to_string(i+1) + ".txt";

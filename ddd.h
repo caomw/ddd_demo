@@ -4,9 +4,9 @@
 #include <iostream>     
 #include <functional> 
 #include "ransacK.cpp"  
-#include "util.h"
+// #include "util.h"
 
-const bool ddd_verbose = false;
+const bool ddd_verbose = true;
 
 ///////////////////////////////////////////////////////////////////////
 // Given a location (x, y, z) in the voxel volume, return a local voxel
@@ -40,18 +40,42 @@ void get_keypoint_volume(float* volume, int x_dim, int y_dim, int z_dim, int x, 
       }
 }
 
-///////////////////////////////////////////////////////////////////////
-void sys_command(std::string str) {
-  if (system(str.c_str()))
+void json_data_location_replace(std::string src, std::string dst, std::string srch_str, std::string rplc_str) {
+  std::ifstream in(src);
+  std::ofstream out(dst);
+  std::string line;
+  size_t len = srch_str.length();
+
+  if (!in) {
+    std::cerr << "Could not open " << src << "\n";
     return;
+  }
+
+  if (!out) {
+    std::cerr << "Could not open " << dst << "\n";
+    return;
+  }
+
+  while (getline(in, line)) {
+    while (true) {
+      size_t pos = line.find(srch_str);
+      if (pos != std::string::npos)
+        line.replace(pos, len, rplc_str);
+      break;
+    }
+    out << line << '\n';
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////
 std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, int y_dim, int z_dim, std::vector<std::vector<int>> &keypoints, int patch_radius, bool is_verbose) {
 
+  // Create random hash ID for ddd instance
+  std::string instance_id = gen_rand_str(16);
+
   // Init tensor files for marvin
-  std::string data_tensor_filename = "TMPdata.tensor";
-  std::string label_tensor_filename = "TMPlabels.tensor";
+  std::string data_tensor_filename = "TMPdata_" + instance_id + ".tensor";
+  std::string label_tensor_filename = "TMPlabels_" + instance_id + ".tensor";
   FILE *data_tensor_fp = fopen(data_tensor_filename.c_str(), "w");
   FILE *label_tensor_fp = fopen(label_tensor_filename.c_str(), "w");
 
@@ -119,20 +143,25 @@ std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, 
   fclose(data_tensor_fp);
 
   // Marvin params
-  std::string feat_tensor_filename = "feat_response.tensor";
+  std::string feat_tensor_filename = "TMPfeat_" + instance_id + ".tensor";
   std::string model_filename = "ddd/dddnet.marvin";
   std::string architecture_filename = "ddd/featnet.json";
+  std::string new_architecture_filename = "ddd/featnet_" + instance_id + ".json";
   std::string marvin_filename = "ddd/marvin";
   std::string cuda_lib_dir = "/usr/local/cuda/lib64";
+
+  // Create custom marvin json file to read from certain file locations
+  json_data_location_replace(architecture_filename, new_architecture_filename, ".tensor", "_" + instance_id + ".tensor");
 
   // Run marvin to get tensor file of feature vectors
   // sys_command("rm " + feat_tensor_filename);
   if (is_verbose)
-    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " feat " + feat_tensor_filename);
+    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + new_architecture_filename + " " + model_filename + " feat " + feat_tensor_filename);
   else
-    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " feat " + feat_tensor_filename + " >/dev/null");
+    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + new_architecture_filename + " " + model_filename + " feat " + feat_tensor_filename + " >/dev/null");
   sys_command("rm " + data_tensor_filename);
   sys_command("rm " + label_tensor_filename);
+  sys_command("rm " + new_architecture_filename);
 
   // Read feature vectors from tensor file
   int feat_dim = 2048;
@@ -160,9 +189,12 @@ std::vector<std::vector<float>> ddd_compare_feat(const std::vector<std::vector<f
   int feat_dim = 2048;
   int num_cases = feat1.size() * feat2.size();
 
+  // Create random hash ID for ddd instance
+  std::string instance_id = gen_rand_str(16);
+
   // Init tensor files for marvin
-  std::string data_tensor_filename = "TMPdata.tensor";
-  std::string label_tensor_filename = "TMPlabels.tensor";
+  std::string data_tensor_filename = "TMPdata_" + instance_id + ".tensor";
+  std::string label_tensor_filename = "TMPlabels_" + instance_id + ".tensor";
   FILE *data_tensor_fp = fopen(data_tensor_filename.c_str(), "w");
   FILE *label_tensor_fp = fopen(label_tensor_filename.c_str(), "w");
 
@@ -228,21 +260,26 @@ std::vector<std::vector<float>> ddd_compare_feat(const std::vector<std::vector<f
   fclose(data_tensor_fp);
 
   // Marvin params
-  std::string prob_tensor_filename = "prob_response.tensor";
+  std::string prob_tensor_filename = "TMPprob_" + instance_id + ".tensor";
   std::string model_filename = "ddd/dddnet.marvin";
   std::string architecture_filename = "ddd/metricnet.json";
+  std::string new_architecture_filename = "ddd/metricnet_" + instance_id + ".json";
   std::string marvin_filename = "ddd/marvin";
   std::string cuda_lib_dir = "/usr/local/cuda/lib64";
+
+  // Create custom marvin json file to read from certain file locations
+  json_data_location_replace(architecture_filename, new_architecture_filename, ".tensor", "_" + instance_id + ".tensor");
 
   // Run marvin to get tensor file of match scores
   model_filename = "ddd/dddnet.marvin";
   // sys_command("rm " + prob_tensor_filename);
   if (is_verbose)
-    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " prob " + prob_tensor_filename);
+    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + new_architecture_filename + " " + model_filename + " prob " + prob_tensor_filename);
   else
-    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + architecture_filename + " " + model_filename + " prob " + prob_tensor_filename + " >/dev/null");
+    sys_command("export LD_LIBRARY_PATH=LD_LIBRARY_PATH:" + cuda_lib_dir + "; ./" + marvin_filename + " test " + new_architecture_filename + " " + model_filename + " prob " + prob_tensor_filename + " >/dev/null");
   sys_command("rm " + data_tensor_filename);
   sys_command("rm " + label_tensor_filename);
+  sys_command("rm " + new_architecture_filename);
 
   // Save match scores to matrix 
   std::vector<std::vector<float>> score_matrix;
