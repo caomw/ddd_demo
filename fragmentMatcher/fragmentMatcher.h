@@ -116,7 +116,7 @@ public:
     {
         std::cout << std::endl << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
         
-        const float k_match_score_thresh = 0.01f;
+        const float k_match_score_thresh = 0.1f;
         const float ransac_k = 10; // RANSAC over top-k > k_match_score_thresh
         const float max_ransac_iter = 1000000;
         const float ransac_inlier_thresh = 0.04f;
@@ -170,8 +170,24 @@ public:
             saveGrid(score_matrix2_filename, score_matrix2);
         }
 
-        ddd_align_feature_cloud(cloudA.keypoints, cloudA.features, score_matrix1, cloudB.keypoints, cloudB.features, score_matrix2,
-            voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_inlier_thresh, Rt);
+        // If Rt file exists in results, load it
+        std::string rt_filename = "results/rt_" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + ".dat";
+        std::cout << rt_filename << std::endl;
+        if (util::fileExists(rt_filename)) {
+            FILE *file = fopen(rt_filename.c_str(), "rb");
+            for (int i = 0; i < 16; i++) {
+                int iret = fscanf(file, "%f", &Rt[i]);
+                std::cout << Rt[i] << std::endl;
+            }
+            fclose(file);
+        } else {
+            ddd_align_feature_cloud(cloudA.keypoints, cloudA.features, score_matrix1, cloudB.keypoints, cloudB.features, score_matrix2,
+                voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_inlier_thresh, Rt);
+        }
+
+
+
+
 
         ///////////////////////////////////////////////////////////////////
         

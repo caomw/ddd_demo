@@ -3,3 +3,4 @@
 # export PATH=$PATH:/usr/local/cuda/bin
 g++ -std=c++11 -O3 -o main main.cpp -I. -I/usr/include/ -I./pc2tsdf/ -L/usr/lib -L/usr/lib/x86_64-linux-gnu/
 g++ -std=c++11 -O3 -o matcher matcher.cpp -I. -I/usr/include/ -I./pc2tsdf/ -L/usr/lib -L/usr/lib/x86_64-linux-gnu/
+g++ -std=c++0x -O3 -o cluster cluster.cpp -I. -I/usr/include/ -I./pc2tsdf/ -L/usr/lib -L/usr/lib/x86_64-linux-gnu/
