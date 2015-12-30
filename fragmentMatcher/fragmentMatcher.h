@@ -9,6 +9,8 @@ public:
         vec3f posA;
         vec3f posB;
         float alignmentError;
+        float scoreAtoB;
+        float scoreBtoA;
     };
 
     struct Result
@@ -25,7 +27,7 @@ public:
             file << "#matches" << std::endl;
             for (const auto &match : matches)
             {
-                file << match.posA << " " << match.posB << " " << match.alignmentError << std::endl;
+                file << match.posA << " " << match.posB << " " << match.alignmentError << " " << match.scoreAtoB << " " << match.scoreBtoA << std::endl;
             }
             file << "#keypointsA" << std::endl;
             for (vec3f v : keypointsA)
@@ -180,24 +182,37 @@ public:
         for (int i = 0; i < 4; i++)
             for (int j = 0; j < 3; j++)
                 prior_icp_result.transformBToA(j, i) = Rt[j * 4 + i];
-        pc2tsdf::UniformAccelerator acceleratorA(prior_icp_result.keypointsA, maxKeypointMatchDist);
+        UniformAccelerator acceleratorA(prior_icp_result.keypointsA, maxKeypointMatchDist);
         //transform B's keypoints into A's
         std::vector<vec3f> keypointsBtransformed = prior_icp_result.keypointsB;
+
+        std::cout << "s1: " << score_matrix1.size() << "x" << score_matrix1[0].size() << std::endl;
+        std::cout << "s2: " << score_matrix2.size() << "x" << score_matrix2[0].size() << std::endl;
+        std::cout << "aCount: " << prior_icp_result.keypointsA.size() << std::endl;
+        std::cout << "bCount: " << keypointsBtransformed.size() << std::endl;
+
+        int bPtIndex = 0;
         for (auto &bPt : keypointsBtransformed)
         {
             const vec3f bPtInA = prior_icp_result.transformBToA * bPt;
             const auto closestPt = acceleratorA.findClosestPoint(bPtInA);
-            const float dist = vec3f::dist(bPtInA, closestPt.first);
+            const float dist = vec3f::dist(bPtInA, closestPt.second);
             if (dist <= maxKeypointMatchDist)
             {
                 KeypointMatch match;
                 match.posA = closestPt.first;
                 match.posB = bPt;
                 match.alignmentError = dist;
+                if (closestPt.first == -1)
+                    std::cout << "huh???" << std::endl;
+                match.scoreAtoB = score_matrix1[closestPt.first][bPtIndex];
+                match.scoreBtoA = score_matrix2[bPtIndex][closestPt.first];
                 prior_icp_result.matches.push_back(match);
                 prior_icp_avg_dist += dist;
             }
+            bPtIndex++;
         }
+
         prior_icp_result.matchFound = prior_icp_result.matches.size() > 0;
         prior_icp_avg_dist = prior_icp_avg_dist/((float) prior_icp_result.matches.size());
         Result result = prior_icp_result;
@@ -208,7 +223,7 @@ public:
         final_Rt = Rt;
 
         // DISABLE ICP FOR NOW (too slow)
-        bool use_matlab_icp = true;
+        bool use_matlab_icp = false;
         if (use_matlab_icp) {
           tic();
           // Create random hash ID for icp instance
@@ -268,22 +283,29 @@ public:
           for (int i = 0; i < 4; i++)
               for (int j = 0; j < 3; j++)
                   post_icp_result.transformBToA(j, i) = final_Rt[j * 4 + i];
-          pc2tsdf::UniformAccelerator acceleratorA(post_icp_result.keypointsA, maxKeypointMatchDist);
+          UniformAccelerator acceleratorA(post_icp_result.keypointsA, maxKeypointMatchDist);
           std::vector<vec3f> keypointsBtransformed = post_icp_result.keypointsB;
+
+          int bPtIndex = 0;
           for (auto &bPt : keypointsBtransformed)
           {
               const vec3f bPtInA = post_icp_result.transformBToA * bPt;
               const auto closestPt = acceleratorA.findClosestPoint(bPtInA);
-              const float dist = vec3f::dist(bPtInA, closestPt.first);
+              const float dist = vec3f::dist(bPtInA, closestPt.second);
               if (dist <= maxKeypointMatchDist)
               {
                   KeypointMatch match;
                   match.posA = closestPt.first;
                   match.posB = bPt;
                   match.alignmentError = dist;
+                  if (closestPt.first == -1)
+                      std::cout << "huh???" << std::endl;
+                  match.scoreAtoB = score_matrix1[closestPt.first][bPtIndex];
+                  match.scoreBtoA = score_matrix2[bPtIndex][closestPt.first];
                   post_icp_result.matches.push_back(match);
                   post_icp_avg_dist += dist;
               }
+              bPtIndex++;
           }
           post_icp_result.matchFound = post_icp_result.matches.size() > 0;
           post_icp_avg_dist = post_icp_avg_dist/((float) post_icp_result.matches.size());

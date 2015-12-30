@@ -10,11 +10,7 @@ void PointCloudToTSDF::makeTSDF(const PointCloudf &cloud, float voxelSize, float
 {
     //std::cout << "Point cloud size: " << cloud.m_points.size() << std::endl;
     
-    accel.init(cloud.computeBoundingBox(), truncationRadius);
-    for (const vec3f &v : cloud.m_points)
-    {
-        accel.addPoint(v);
-    }
+    accel = UniformAccelerator(cloud.m_points, truncationRadius);
 
     out.voxelSize = voxelSize;
     out.truncationRadius = truncationRadius;
@@ -44,8 +40,8 @@ void PointCloudToTSDF::makeTSDF(const PointCloudf &cloud, float voxelSize, float
 
 float PointCloudToTSDF::computeTSDFValue(const PointCloudf &cloud, const vec3f &pos, float truncationRadius)
 {
-    const auto result = accel.findClosestPoint(pos);
-    const float dist = sqrtf(result.second);
+    const vec3f result = accel.findClosestPoint(pos).second;
+    const float dist = vec3f::dist(result, pos);
     return std::min(truncationRadius, dist);
 }
 
