@@ -6,7 +6,7 @@
 #include "ransacK.cpp"  
 // #include "util.h"
 
-const bool ddd_verbose = false;
+const bool ddd_verbose = true;
 
 ///////////////////////////////////////////////////////////////////////
 // Given a location (x, y, z) in the voxel volume, return a local voxel

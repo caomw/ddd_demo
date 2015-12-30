@@ -34,6 +34,11 @@ public:
             for (vec3f v : keypointsB)
                 file << v << std::endl;
         }
+
+        void saveEvaluation(const std::string &filename) {
+          
+        }
+
         bool matchFound;
 
         mat4f transformBToA;
@@ -74,7 +79,7 @@ public:
     static void match_only(const std::string &pointCloudFileA, const std::string &pointCloudFileB, int cloudIndA, int cloudIndB, float voxelSize, float truncationRadius, float maxKeypointMatchDist) {
         std::cout << std::endl << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
         
-        const float k_match_score_thresh = 0.01f;
+        const float k_match_score_thresh = 0.1f;
         const float ransac_k = 10; // RANSAC over top-k > k_match_score_thresh
         const float max_ransac_iter = 1000000;
         const float ransac_inlier_thresh = 0.04f;
@@ -208,7 +213,7 @@ public:
         final_Rt = Rt;
 
         // DISABLE ICP FOR NOW (too slow)
-        bool use_matlab_icp = true;
+        bool use_matlab_icp = false;
         if (use_matlab_icp) {
           tic();
           // Create random hash ID for icp instance

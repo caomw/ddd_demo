@@ -43,7 +43,7 @@ int main(int argc, char **argv)
         }
     }
 
-    // For running on cpu clusters
+    // // For running on cpu clusters
     // int idx = std::atoi(argv[1]);
     // int i = (int) std::floor(((float)idx)/((float)fragmentCount));
     // int j = idx%fragmentCount;
