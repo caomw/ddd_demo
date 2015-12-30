@@ -343,7 +343,7 @@ void ddd_align_feature_cloud(const std::vector<std::vector<float>> &world_keypoi
     for (int i = 0; i < feat1.size(); i++) {
         // Sort score vector in descending fashion
         std::vector<float> tmp_score_vect = score_matrix1[i];
-        float* tmp_score_vect_arr = &tmp_score_vect[0];
+        float* tmp_score_vect_arr = tmp_score_vect.data();
         int* tmp_score_idx = new int[tmp_score_vect.size()];
         std::iota(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), 0);
         std::sort(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), std::bind(sort_arr_desc_compare, std::placeholders::_1, std::placeholders::_2, tmp_score_vect_arr));
@@ -361,7 +361,7 @@ void ddd_align_feature_cloud(const std::vector<std::vector<float>> &world_keypoi
     for (int i = 0; i < feat2.size(); i++) {
         // Sort score vector in descending fashion
         std::vector<float> tmp_score_vect = score_matrix2[i];
-        float* tmp_score_vect_arr = &tmp_score_vect[0];
+        float* tmp_score_vect_arr = tmp_score_vect.data();
         int* tmp_score_idx = new int[tmp_score_vect.size()];
         std::iota(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), 0);
         std::sort(tmp_score_idx, tmp_score_idx + tmp_score_vect.size(), std::bind(sort_arr_desc_compare, std::placeholders::_1, std::placeholders::_2, tmp_score_vect_arr));
