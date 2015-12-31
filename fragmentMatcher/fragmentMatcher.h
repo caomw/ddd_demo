@@ -1,6 +1,8 @@
 
 #include "pc2tsdf.h"
 
+#include "denseCheck.h"
+
 class FragmentMatcher
 {
 public:
@@ -23,6 +25,10 @@ public:
             file << "keypointsBCount " << keypointsB.size() << std::endl;
             file << "transform" << std::endl;
             file << transformBToA;
+            file << "denseCheck-commonPointCount " << denseCheck.commonPointCount << std::endl;
+            file << "denseCheck-overlapRatio " << denseCheck.overlapRatio << std::endl;
+            file << "denseCheck-totalAvgResidual " << denseCheck.totalAvgResidual << std::endl;
+            file << "denseCheck-overlapAvgResidual " << denseCheck.overlapAvgResidual << std::endl;
             
             file << "#matches" << std::endl;
             for (const auto &match : matches)
@@ -36,10 +42,11 @@ public:
             for (vec3f v : keypointsB)
                 file << v << std::endl;
         }
-        bool matchFound;
 
         mat4f transformBToA;
         
+        DenseCheck::Result denseCheck;
+
         std::vector<vec3f> keypointsA;
         std::vector<vec3f> keypointsB;
         std::vector<KeypointMatch> matches;
@@ -113,6 +120,7 @@ public:
     {
         std::cout << std::endl << "Matching " << pointCloudFileA << " against " << pointCloudFileB << std::endl;
         
+        const float denseCheckMatchDist = 0.03f;
         const float k_match_score_thresh = 0.01f;
         const float ransac_k = 10; // RANSAC over top-k > k_match_score_thresh
         const float max_ransac_iter = 1000000;
@@ -166,23 +174,10 @@ public:
             saveGrid(score_matrix1_filename, score_matrix1);
             saveGrid(score_matrix2_filename, score_matrix2);
         }
-        // If Rt file exists in results, load it
-        std::string rt_filename = "results/rt_" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + ".dat";
-        if (util::fileExists(rt_filename)) {
-            FILE *file = fopen(rt_filename.c_str(), "rb");
-            for (int i = 0; i < 16; i++) {
-                int iret = fscanf(file, "%f", &Rt[i]);
-                std::cout << Rt[i] << std::endl;
-            }
-            fclose(file);
-        } else {
-            ddd_align_feature_cloud(cloudA.keypoints, cloudA.features, score_matrix1, cloudB.keypoints, cloudB.features, score_matrix2,
-                voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_inlier_thresh, Rt);
-            FILE *file = fopen(rt_filename.c_str(), "wb");
-            for (int i = 0; i < 4; i++)
-                fprintf(file, "%f %f %f %f\n", Rt[4*i+0], Rt[4*i+1], Rt[4*i+2], Rt[4*i+3]);
-            fclose(file);
-        }
+
+        ddd_align_feature_cloud(cloudA.keypoints, cloudA.features, score_matrix1, cloudB.keypoints, cloudB.features, score_matrix2,
+            voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_inlier_thresh, Rt);
+
         ///////////////////////////////////////////////////////////////////
         
         float prior_icp_avg_dist = 0;
@@ -224,9 +219,15 @@ public:
             bPtIndex++;
         }
 
-        prior_icp_result.matchFound = prior_icp_result.matches.size() > 0;
         prior_icp_avg_dist = prior_icp_avg_dist/((float) prior_icp_result.matches.size());
         Result result = prior_icp_result;
+
+        auto mLibCloudA = PointCloudIOf::loadFromFile(pointCloudFileA);
+        auto mLibCloudB = PointCloudIOf::loadFromFile(pointCloudFileB);
+
+        std::cout << "Running dense check..." << std::endl;
+        result.denseCheck = DenseCheck::run(mLibCloudA.m_points, mLibCloudB.m_points, prior_icp_result.transformBToA, denseCheckMatchDist);
+        std::cout << "done" << std::endl;
 
         ///////////////////////////////////////////////////////////////////
 
@@ -318,7 +319,6 @@ public:
               }
               bPtIndex++;
           }
-          post_icp_result.matchFound = post_icp_result.matches.size() > 0;
           post_icp_avg_dist = post_icp_avg_dist/((float) post_icp_result.matches.size());
 
           printf("Pre-ICP avg err: %f\n", prior_icp_avg_dist);
@@ -333,7 +333,7 @@ public:
           toc();
         }
 
-        const bool debugDump = false;
+        const bool debugDump = true;
         if (debugDump) {
             ///////////////////////////////////////////////////////////////////
             // DEBUG: save point aligned point clouds

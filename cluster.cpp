@@ -98,8 +98,8 @@ void loadGrid(std::string &filename, std::vector<std::vector<float>> &grid) {
     }
 
     FILE *file = fopen(filename.c_str(), "rb");
-    fread(&dimX, sizeof(size_t), 1, file);
-    fread(&dimY, sizeof(size_t), 1, file);
+    size_t dummy1 = fread(&dimX, sizeof(size_t), 1, file);
+    size_t dummy2 = fread(&dimY, sizeof(size_t), 1, file);
 
     // Grid2f g(dimX, dimY);
     // util::checkedFRead(g.getData(), sizeof(float), dimX * dimY, file);
@@ -128,7 +128,7 @@ void loadGrid(std::string &filename, std::vector<std::vector<float>> &grid) {
     for (int y = 0; y < dimY; y++) {
         for (int x = 0; x < dimX; x++) {
             float tmp_val;
-            fread(&tmp_val, sizeof(float), 1, file);
+            size_t dumm3 = fread(&tmp_val, sizeof(float), 1, file);
             grid[x].push_back(tmp_val);
         }
     }
