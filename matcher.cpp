@@ -39,6 +39,7 @@ int main(int argc, char **argv)
             // FragmentMatcher::match_only(allFragments[i], allFragments[j], i, j, voxelSize, truncationRadius, maxKeypointMatchDist);
             // // Aligns
             auto result = FragmentMatcher::match(allFragments[i], allFragments[j], i, j, voxelSize, truncationRadius, maxKeypointMatchDist);
+            cout << "Saving " << resultFilename << endl;
             result.saveASCII(resultFilename);
         }
     }
