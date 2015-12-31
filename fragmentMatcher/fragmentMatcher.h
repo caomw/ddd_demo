@@ -166,10 +166,23 @@ public:
             saveGrid(score_matrix1_filename, score_matrix1);
             saveGrid(score_matrix2_filename, score_matrix2);
         }
-
-        ddd_align_feature_cloud(cloudA.keypoints, cloudA.features, score_matrix1, cloudB.keypoints, cloudB.features, score_matrix2,
-            voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_inlier_thresh, Rt);
-
+        // If Rt file exists in results, load it
+        std::string rt_filename = "results/rt_" + std::to_string(cloudIndA) + "_" + std::to_string(cloudIndB) + ".dat";
+        if (util::fileExists(rt_filename)) {
+            FILE *file = fopen(rt_filename.c_str(), "rb");
+            for (int i = 0; i < 16; i++) {
+                int iret = fscanf(file, "%f", &Rt[i]);
+                std::cout << Rt[i] << std::endl;
+            }
+            fclose(file);
+        } else {
+            ddd_align_feature_cloud(cloudA.keypoints, cloudA.features, score_matrix1, cloudB.keypoints, cloudB.features, score_matrix2,
+                voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_inlier_thresh, Rt);
+            FILE *file = fopen(rt_filename.c_str(), "wb");
+            for (int i = 0; i < 4; i++)
+                fprintf(file, "%f %f %f %f\n", Rt[4*i+0], Rt[4*i+1], Rt[4*i+2], Rt[4*i+3]);
+            fclose(file);
+        }
         ///////////////////////////////////////////////////////////////////
         
         float prior_icp_avg_dist = 0;
@@ -320,7 +333,7 @@ public:
           toc();
         }
 
-        const bool debugDump = true;
+        const bool debugDump = false;
         if (debugDump) {
             ///////////////////////////////////////////////////////////////////
             // DEBUG: save point aligned point clouds

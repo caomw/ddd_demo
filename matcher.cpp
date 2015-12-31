@@ -37,7 +37,7 @@ int main(int argc, char **argv)
                 continue;
             // Score matrix only
             // FragmentMatcher::match_only(allFragments[i], allFragments[j], i, j, voxelSize, truncationRadius, maxKeypointMatchDist);
-            // // Aligns
+            // Aligns
             auto result = FragmentMatcher::match(allFragments[i], allFragments[j], i, j, voxelSize, truncationRadius, maxKeypointMatchDist);
             cout << "Saving " << resultFilename << endl;
             result.saveASCII(resultFilename);

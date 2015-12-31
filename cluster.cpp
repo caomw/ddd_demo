@@ -192,6 +192,8 @@ void cluster_ransac(std::string fragment1_name, std::string fragment2_name, int 
 
     ddd_align_feature_cloud(keypoints1, feat1, score_matrix1, keypoints2, feat2, score_matrix2, voxelSize, k_match_score_thresh, ransac_k, max_ransac_iter, ransac_inlier_thresh, Rt);
 
+    
+
     // Save to file in results
     std::string rt_filename = "results/rt_" + std::to_string((long long)fragment1_idx) + "_" + std::to_string((long long)fragment2_idx) + ".dat";
     FILE *file = fopen(rt_filename.c_str(), "wb");

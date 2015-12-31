@@ -708,8 +708,6 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
       //printf("corr_sample: %d %d %d\n",corr_sample[0],corr_sample[1],corr_sample[2]);
       maxCount = h_count;
       bestinlier = inlier;
-      if (is_verbose)
-        printf("RANSAC iteration: %d/%d, inliers: %d\n", iter, numLoops, maxCount);
       for (int i = 0; i < 12; i++) {
         rigidtransform[i] = h_RT[i];
       }
@@ -724,6 +722,8 @@ int ransacfitRt(const std::vector< std::vector<float> > refCoord, const std::vec
       // conv_num_loops = (int) std::floor(std::log(1 - p) / std::log(pNoOutliers));
       // conv_num_loops = comp_min(conv_num_loops, 100000); // at least try 10,000 times
     }
+      if (is_verbose)
+        printf("RANSAC iteration: %d/%d, inliers: %d\n", iter, numLoops, maxCount);
 
     // if (iter > conv_num_loops)
     //   break;

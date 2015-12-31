@@ -180,6 +180,8 @@ std::vector<std::vector<float>> ddd_get_keypoint_feat(float* volume, int x_dim, 
   }
   sys_command("rm " + feat_tensor_filename);
 
+  delete [] feat_raw;
+
   return feat;
 }
 
@@ -292,6 +294,9 @@ void ddd_compare_feat(std::vector<std::vector<float>> &feat1, std::vector<std::v
     score_matrix->push_back(tmp_score_vect);
   }
 
+  delete [] labels_raw;
+  delete [] match_scores;
+
   sys_command("rm " + prob_tensor_filename);
 }
 
@@ -353,6 +358,7 @@ void ddd_align_feature_cloud(const std::vector<std::vector<float>> &world_keypoi
                 tmp_score_rank.push_back(tmp_score_idx[j]);
         // std::cout << tmp_score_rank.size() << std::endl;
         match_rank1.push_back(tmp_score_rank);
+        delete [] tmp_score_idx;
     }
 
     // For each keypoint from second set, find indices of all keypoints
@@ -371,6 +377,7 @@ void ddd_align_feature_cloud(const std::vector<std::vector<float>> &world_keypoi
                 tmp_score_rank.push_back(tmp_score_idx[j]);
         // std::cout << tmp_score_rank.size() << std::endl;
         match_rank2.push_back(tmp_score_rank);
+        delete [] tmp_score_idx;
     }
 
     // Finalize match matrix (indices) unofficial reflexive property
